@@ -1,0 +1,8 @@
+File size,row,column,layer,parity percent,checksum percent,parity coverage,Number of copies of each origami,Maximum number of error checked per origami,Decoding time,Number of error per origami,Total number of error,Total number of error detected,Incorrect origami,Correct Origami,Missing origamies,status,threshold data,threshold parity,false positive
+1000,8,10,3,0.45,0.05,8,20,0.03,1.99,0,0,0,0,1540,[],1,2,2,0
+1000,8,10,3,0.45,0.05,8,20,0.03,1.74,3,4620,4620,0,1540,[],1,2,2,0
+1000,8,10,3,0.45,0.05,8,20,0.03,256.83,6,9240,9244,6,1531,[],1,2,2,0
+1000,8,10,3,0.45,0.05,8,20,0.03,1428.75,9,13860,13567,21,1480,[],1,2,2,0
+1000,8,10,3,0.45,0.05,8,20,0.03,6460.29,12,18480,15756,32,1274,[],1,2,2,0
+1000,8,10,3,0.45,0.05,8,20,0.03,8470.42,15,23100,16669,45,1059,[],1,2,2,0
+1000,8,10,3,0.45,0.05,8,20,0.03,15104.99,18,27720,14595,48,760,[],1,2,2,0
