@@ -69,6 +69,13 @@ class ProcessFile(Origami):
 
         bits_needed_to_store = len(data_in_binary)
         index_bits, data_bit, segment_size = self._find_optimum_index_bits(bits_needed_to_store)
+        print("<-----------index bits----------->")
+        print(index_bits)
+        print("<-------------------------------->")
+        print("<-----------data bit----------->")
+        print(data_bit)
+        print("<---------------segment_size----------------->")
+        print(segment_size)
         # Divide into origami from datastream
         for origami_index in range(segment_size):
             origami_data = data_in_binary[origami_index * data_bit: (origami_index + 1) * data_bit].ljust(data_bit, '0')
