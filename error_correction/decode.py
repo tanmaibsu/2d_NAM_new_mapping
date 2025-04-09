@@ -17,7 +17,8 @@ def read_args():
 
 
     parser.add_argument("-o", "--file_out", help="File to write output", required=True)
-    parser.add_argument("-fz", "--file_size", help="File size that will be decoded", type=int, required=True)
+    parser.add_argument("-fz", "--file_size", help="File size that will be decoded", type=int, default=20)
+    parser.add_argument("-p", "--parity_number", help="Number of Parity to decode", type=int, default=40)
     parser.add_argument('-tp', '--threshold_parity',
                         help='Minimum weight for a parity bit cell to be consider that as an error', default=2, type=int)
     parser.add_argument("-td", "--threshold_data",
@@ -30,7 +31,7 @@ def read_args():
                         action='store_true', default=True)
     parser.add_argument("-e", "--error", help="Maximum number of error that the algorithm "
                                               "will try to fix", type=int, default=8)
-    parser.add_argument("-fp", "--false_positive", help="0 can also be 1.", type=int, default=0)
+    parser.add_argument("-fp", "--false_positive", help="0 can also be 1.", type=int, default=1)
 
     parser.add_argument("-d", "--degree", help="Degree old/new", default="new", type=str)
 
@@ -111,7 +112,7 @@ def main():
             # print(os.path.relpath(origami, start=os.getcwd()))
             for errors in range(1, max_n_errors_induced+1):
                 origami_data, errors_index = flip_n_bits(data[0], errors)
-                dnam_decode.decode([origami_data], errors, errors_index, args.file_out, args.file_size,
+                dnam_decode.decode([origami_data], errors, errors_index, args.file_out, args.file_size, int(args.parity_number),
                                 threshold_data=args.threshold_data,
                                 threshold_parity=args.threshold_parity,
                                 maximum_number_of_error=args.error,
@@ -126,7 +127,7 @@ def main():
         data = data_file.readlines()
         data = convert_to_single_arr(data)
         data_file.close()
-        dnam_decode.decode(data, 0, [-100], args.file_out, args.file_size,
+        dnam_decode.decode(data, 0, [-100], args.file_out, args.file_size, int(args.parity_number),
                                 threshold_data=args.threshold_data,
                                 threshold_parity=args.threshold_parity,
                                 maximum_number_of_error=args.error,

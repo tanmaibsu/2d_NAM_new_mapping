@@ -1,5 +1,6 @@
 from functools import reduce
 from collections import Counter
+import get_parity_n_checksum as pcm
 import copy
 import numpy as np
 import logging
@@ -25,62 +26,38 @@ class Origami:
         self.list_of_error_combination = []
         self.orientation_details = {
             '0': 'Orientation of the origami is correct',
-            '1': 'Origami was flipped in horizontal direction',
+            '1': 'Origami wasX flipped in horizontal direction',
             '2': 'Origami was flipped in vertical direction.',
             '3': 'Origami was flipped in both direction. '
         }
         self.logger = get_logger(verbose, __name__)
     @staticmethod
-    def get_parity_relation():
-        return {
-            (2, 2): [(0, 0), (0, 5), (0, 7), (1, 1), (1, 5), (1, 6), (1, 7), (1, 9), 
-                    (2, 1), (3, 0), (3, 4), (3, 6), (4, 8), (5, 9), (7, 6), (7, 8)],
-            (2, 3): [(0, 1), (0, 6), (1, 0), (1, 2), (1, 4), (1, 8), (2, 0), (2, 8),
-                    (3, 1), (3, 3), (3, 5), (3, 9), (6, 3), (7, 2), (7, 4), (7, 9)],
-            (2, 4): [(0, 4), (0, 9), (4, 1), (4, 5), (4, 6), (4, 9), (5, 0), (5, 8), 
-                    (6, 1), (6, 4), (6, 6), (6, 7), (6, 9), (7, 1), (7, 3), (7, 7)],
-            (2, 5): [(0, 5), (0, 0), (4, 8), (4, 4), (4, 3), (4, 0), (5, 9), (5, 1), 
-                    (6, 8), (6, 5), (6, 3), (6, 2), (6, 0), (7, 8), (7, 6), (7, 2)],
-            (2, 6): [(0, 8), (0, 3), (1, 9), (1, 7), (1, 5), (1, 1), (2, 9), (2, 1),
-                    (3, 8), (3, 6), (3, 4), (3, 0), (6, 6), (7, 7), (7, 5), (7, 0)],
-            (2, 7): [(0, 9), (0, 4), (0, 2), (1, 8), (1, 4), (1, 3), (1, 2), (1, 0),
-                    (2, 8), (3, 9), (3, 5), (3, 3), (4, 1), (5, 0), (7, 3), (7, 1)],
-            (3, 2): [(0, 2), (0, 3), (0, 8), (1, 3), (2, 9), (3, 8), (4, 0), (4, 3),
-                     (4, 4), (5, 1), (6, 0), (6, 2), (6, 5), (6, 8), (7, 0), (7, 5)],
-            (3, 7): [(0, 7), (0, 6), (0, 1), (1, 6), (2, 0), (3, 1), (4, 9), (4, 6),
-                    (4, 5), (5, 8), (6, 9), (6, 7), (6, 4), (6, 1), (7, 9), (7, 4)],
-            (4, 2): [(7, 2), (7, 3), (7, 8), (6, 3), (5, 9), (4, 8), (3, 0), (3, 3),
-                    (3, 4), (2, 1), (1, 0), (1, 2), (1, 5), (1, 8), (0, 0), (0, 5)],
-            (4, 7): [(7, 7), (7, 6), (7, 1), (6, 6), (5, 0), (4, 1), (3, 9), (3, 6),
-                    (3, 5), (2, 8), (1, 9), (1, 7), (1, 4), (1, 1), (0, 9), (0, 4)],
-            (5, 2): [(7, 0), (7, 5), (7, 7), (6, 1), (6, 5), (6, 6), (6, 7), (6, 9),
-                    (5, 1), (4, 0), (4, 4), (4, 6), (3, 8), (2, 9), (0, 6), (0, 8)],
-            (5, 3): [(7, 1), (7, 6), (6, 0), (6, 2), (6, 4), (6, 8), (5, 0), (5, 8),
-                    (4, 1), (4, 3), (4, 5), (4, 9), (1, 3), (0, 2), (0, 4), (0, 9)],
-            (5, 4): [(7, 4), (7, 9), (3, 1), (3, 5), (3, 6), (3, 9), (2, 0), (2, 8),
-                    (1, 1), (1, 4), (1, 6), (1, 7), (1, 9), (0, 1), (0, 3), (0, 7)],
-            (5, 5): [(7, 5), (7, 0), (3, 8), (3, 4), (3, 3), (3, 0), (2, 9), (2, 1),
-                    (1, 8), (1, 5), (1, 3), (1, 2), (1, 0), (0, 8), (0, 6), (0, 2)],
-            (5, 6): [(7, 8), (7, 3), (6, 9), (6, 7), (6, 5), (6, 1), (6, 9), (5, 1),
-                    (4, 8), (4, 6), (4, 4), (4, 0), (1, 6), (0, 7), (0, 5), (0, 0)],
-            (5, 7): [(7, 9), (7, 4), (7, 2), (6, 8), (6, 4), (6, 3), (6, 2), (6, 0),
-                    (5, 8), (4, 9), (4, 5), (4, 3), (3, 1), (2, 0), (0, 3), (0, 1)]
-        }
-
+    def get_parity_relation(parity_number=40):
+        parity_relation = {}
+        print(parity_number)
+        if parity_number == 16:
+            print("in 16")
+            parity_relation = pcm.parity_mapping_16() 
+        if parity_number == 24:
+            print("in 24")
+            parity_relation = pcm.parity_mapping_24() 
+        else:
+            print("in 40")
+            parity_relation = pcm.parity_mapping_40() 
+        return parity_relation
+            
     @staticmethod
-    def get_checksum_relation():
-        return {
-            (3, 4): [(0, 0), (0, 1), (0, 2), (0, 3), (0, 4), (1, 0), (1, 1), (1, 2),
-                    (1, 3), (1, 4), (2, 0), (2, 1), (3, 0), (3, 1), (3, 3)],
-            (3, 5): [(0, 5), (0, 6), (0, 7), (0, 8), (0, 9), (1, 5), (1, 6), (1, 7), 
-                    (1, 8), (1, 9), (2, 8), (2, 9), (3, 6), (3, 8), (3, 9)],
-            (4, 4): [(4, 0), (4, 1), (4, 3), (5, 0), (5, 1), (6, 0), (6, 1), (6, 2), 
-                    (6, 3), (6, 4), (7, 0), (7, 1), (7, 2), (7, 3), (7, 4)],
-            (4, 5): [(4, 6), (4, 8), (4, 9), (5, 8), (5, 9), (6, 5), (6, 6), (6, 7), 
-                    (6, 8), (6, 9), (7, 5), (7, 6), (7, 7), (7, 8), (7, 9)]
-        }
+    def get_checksum_relation(parity_number=40):
+        checksum_relation = {}
+        if parity_number == 16:
+            checksum_relation = pcm.checksum_mapping_16()
+        if parity_number == 24:
+            checksum_relation = pcm.checksum_mapping_24()
+        else:
+            checksum_relation = pcm.checksum_mapping_40()
+        return checksum_relation
 
-    def _matrix_details(self, data_bit_per_origami: int) -> object:
+    def _matrix_details(self, data_bit_per_origami: int, parity_number: int) -> object:
         """
         Returns the relationship of the matrix. Currently all the the relationship is hardcoded.
         This method returns the following details:
@@ -96,8 +73,8 @@ class Origami:
                  checksum_bit_relation: Checksum bit mapping
 
         """
-        parity_bit_relation = self.get_parity_relation()
-        checksum_bit_relation = self.get_checksum_relation()
+        parity_bit_relation = self.get_parity_relation(parity_number)
+        checksum_bit_relation = self.get_checksum_relation(parity_number)
 
         data_index_orientation = set([i for v in checksum_bit_relation.values() for i in v])
         orientation_bits = set([(1, 0), (1, 9), (6, 0), (6, 9)])
@@ -131,10 +108,10 @@ class Origami:
         data_matrix = np.full((self.row, self.column), -1)  # All the cell of the matrix will have initial value -1.
 
         # Putting the data into matrix
-        print("origami, ", 1)
+        # print("origami, ", 1)
         for i, bit_index in enumerate(self.matrix_details["data_bits"]):
-            print(bit_index)
-            print(binary_list[i])
+            # print(bit_index)
+            # print(binary_list[i])
             data_matrix[bit_index[0]][bit_index[1]] = binary_list[i]
 
         # Putting orientation data
@@ -178,7 +155,7 @@ class Origami:
 
         return matrix
 
-    def _encode(self, binary_stream, index, data_bit_per_origami):
+    def _encode(self, binary_stream, index, data_bit_per_origami, parity_number):
         """
         Handle the encoding. Most of the time handle xoring.
         :param binary_stream: Binary value of the data
@@ -190,7 +167,7 @@ class Origami:
         # error encoding. So the parity bits will have the initial value of -1
         self.number_of_bit_per_origami = data_bit_per_origami
         self.matrix_details, self.parity_bit_relation, self.checksum_bit_relation = \
-            self._matrix_details(data_bit_per_origami)
+            self._matrix_details(data_bit_per_origami, parity_number)
         self.data_bit_to_parity_bit = Origami.get_data_bit_to_parity_bit(self.parity_bit_relation)
         encoded_matrix = self.create_initial_matrix_from_binary_stream(binary_stream, index)
 

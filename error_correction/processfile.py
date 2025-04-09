@@ -27,7 +27,7 @@ class ProcessFile(Origami):
         # Will be updated later during checking number how much redundancy we will need
         self.number_of_bit_per_origami = 29
 
-    def _find_optimum_index_bits(self, bits_needed_to_store):
+    def _find_optimum_index_bits(self, bits_needed_to_store, parity_number):
         """
         Find the optimum number of index bits
         :param bits_needed_to_store:
@@ -35,8 +35,9 @@ class ProcessFile(Origami):
         :return:
         """
         total_capacity = self.row * self.column
-        checksum_allocation = len(self.get_checksum_relation())
-        parity_allocation = len(self.get_parity_relation())
+        print(self.get_parity_relation(parity_number))
+        checksum_allocation = len(self.get_checksum_relation(parity_number))
+        parity_allocation = len(self.get_parity_relation(parity_number))
         available_capacity = total_capacity - checksum_allocation - parity_allocation - 4
 
         for i in range(1, available_capacity):
@@ -46,7 +47,7 @@ class ProcessFile(Origami):
                 return i, capacity_after_index, index_bit_required
         raise Exception("File size is to large to store in the given capacity")
 
-    def encode(self, file_in, file_out, formatted_output=False):
+    def encode(self, file_in, file_out, formatted_output=False, parity_number=40):
         """
         Encode the file
         :param file_in: File that need to be encoded
@@ -68,7 +69,7 @@ class ProcessFile(Origami):
         # divide the origami based on number of bit per origami
 
         bits_needed_to_store = len(data_in_binary)
-        index_bits, data_bit, segment_size = self._find_optimum_index_bits(bits_needed_to_store)
+        index_bits, data_bit, segment_size = self._find_optimum_index_bits(bits_needed_to_store, parity_number)
         print("<-----------index bits----------->")
         print(index_bits)
         print("<-------------------------------->")
@@ -79,7 +80,7 @@ class ProcessFile(Origami):
         # Divide into origami from datastream
         for origami_index in range(segment_size):
             origami_data = data_in_binary[origami_index * data_bit: (origami_index + 1) * data_bit].ljust(data_bit, '0')
-            encoded_stream = self._encode(origami_data, origami_index, data_bit)
+            encoded_stream = self._encode(origami_data, origami_index, data_bit, parity_number)
             if formatted_output:
                 print("Matrix -> " + str(origami_index), file=file_out)
                 self.print_matrix(self.data_stream_to_matrix(encoded_stream), in_file=file_out)
@@ -149,7 +150,7 @@ class ProcessFile(Origami):
             # lock.release()
         return [decoded_matrix, status]
 
-    def decode(self, data, induced_errors, errors_positions, file_out, file_size, threshold_data, threshold_parity, maximum_number_of_error,
+    def decode(self, data, induced_errors, errors_positions, file_out, file_size, parity_number, threshold_data, threshold_parity, maximum_number_of_error,
                individual_origami_info, false_positive, correct_file=False):
         
         print("Errors Positions", errors_positions)
@@ -172,9 +173,9 @@ class ProcessFile(Origami):
         except Exception as e:
             self.logger.error("%s", e)
             return
-        index_bits, data_bit, segment_size = self._find_optimum_index_bits(file_size * 8)
+        index_bits, data_bit, segment_size = self._find_optimum_index_bits(file_size * 8, parity_number)
         self.matrix_details, self.parity_bit_relation, self.checksum_bit_relation = \
-            self._matrix_details(data_bit)
+            self._matrix_details(data_bit, parity_number)
         self.data_bit_to_parity_bit = self.get_data_bit_to_parity_bit(self.parity_bit_relation)
 
         decoded_dictionary = {}
