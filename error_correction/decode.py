@@ -48,26 +48,6 @@ def main():
     
     encoded_origamis_path = Path(args.bulk_folder)
 
-
-    # def flip_n_bits(binary_str, n):
-    #     """
-    #     Randomly flips 'n' bits in a binary string.
-
-    #     :param binary_str: String containing binary bits (e.g., "1010101").
-    #     :param n: Number of bits to flip.
-    #     :return: Modified binary string with 'n' flipped bits.
-    #     """
-    #     if not binary_str or n <= 0:
-    #         return binary_str  # Return original if empty or no flips needed
-
-    #     binary_list = list(binary_str)  # Convert string to list (mutable)
-    #     indices = random.sample(range(len(binary_list)), min(n, len(binary_list)))  # Pick 'n' unique indices
-
-    #     for idx in indices:
-    #         binary_list[idx] = '0' if binary_list[idx] == '1' else '1'  # Flip bit
-
-    #     return "".join(binary_list), indices  # Convert back to string
-
     def flip_n_bits(binary_str, n):
         """
         Randomly flips 'n' bits in a binary string, but only if the bit is '1'.
