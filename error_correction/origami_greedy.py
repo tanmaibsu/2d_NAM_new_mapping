@@ -1,6 +1,5 @@
 from functools import reduce
 from collections import Counter
-import get_parity_n_checksum as pcm
 import copy
 import numpy as np
 import logging
@@ -26,35 +25,66 @@ class Origami:
         self.list_of_error_combination = []
         self.orientation_details = {
             '0': 'Orientation of the origami is correct',
-            '1': 'Origami wasX flipped in horizontal direction',
+            '1': 'Origami was flipped in horizontal direction',
             '2': 'Origami was flipped in vertical direction.',
             '3': 'Origami was flipped in both direction. '
         }
         self.logger = get_logger(verbose, __name__)
     @staticmethod
-    def get_parity_relation(parity_number=40):
-        parity_relation = {}
-        print(parity_number)
-        if parity_number == 16:
-            parity_relation = pcm.parity_mapping_16() 
-        if parity_number == 24:
-            parity_relation = pcm.parity_mapping_24() 
-        else:
-            parity_relation = pcm.parity_mapping_40() 
-        return parity_relation
-            
-    @staticmethod
-    def get_checksum_relation(parity_number=40):
-        checksum_relation = {}
-        if parity_number == 16:
-            checksum_relation = pcm.checksum_mapping_16()
-        if parity_number == 24:
-            checksum_relation = pcm.checksum_mapping_24()
-        else:
-            checksum_relation = pcm.checksum_mapping_40()
-        return checksum_relation
+    def get_parity_relation():
+        return {
+            (1, 1): [(0, 0), (0, 5), (3, 4), (7, 8)],
+            (1, 2): [(0, 7), (3, 9), (3, 3), (5, 0)],
+            (1, 3): [(0, 3), (1, 0), (4, 4), (0, 9)],
+            (1, 4): [(0, 3), (3, 3), (4, 9), (7, 5)],
+            (1, 5): [(0, 6), (3, 6), (4, 0), (7, 4)],
+            (1, 6): [(0, 0), (0, 6), (1, 9), (4, 5)],
+            (1, 7): [(0, 2), (3, 0), (3, 6), (5, 9)],
+            (1, 8): [(0, 4), (0, 9), (3, 5), (7, 1)],
+            (2, 1): [(0, 1), (0, 7), (3, 0), (6, 0)],
+            (2, 2): [(0, 6), (2, 9), (7, 0), (7, 4)],
+            (2, 3): [(1, 9), (4, 5), (7, 1), (7, 9)],
+            (2, 4): [(0, 8), (2, 0), (6, 9), (7, 2)],
+            (2, 5): [(0, 1), (2, 9), (6, 0), (7, 7)],
+            (2, 6): [(1, 0), (4, 4), (7, 0), (7, 8)],
+            (2, 7): [(0, 3), (2, 0), (7, 5), (7, 9)],
+            (2, 8): [(0, 2), (0, 8), (3, 9), (6, 9)],
+            (3, 1): [(3, 5), (4, 0), (4, 6), (7, 6)],
+            (3, 2): [(0, 4), (4, 3), (5, 0), (7, 7)],
+            (3, 7): [(0, 5), (4, 6), (5, 9), (7, 2)],
+            (3, 8): [(3, 4), (4, 3), (4, 9), (7, 3)],
+            (4, 1): [(0, 6), (3, 0), (3, 6), (4, 5)],
+            (4, 2): [(0, 7), (2, 0), (3, 3), (7, 4)],
+            (4, 7): [(0, 2), (2, 9), (3, 6), (7, 5)],
+            (4, 8): [(0, 3), (3, 3), (3, 9), (4, 4)],
+            (5, 1): [(1, 0), (4, 0), (7, 1), (7, 7)],
+            (5, 2): [(0, 0), (0, 4), (5, 9), (7, 6)],
+            (5, 3): [(0, 1), (0, 9), (3, 5), (6, 9)],
+            (5, 4): [(0, 2), (1, 9), (5, 0), (7, 8)],
+            (5, 5): [(0, 7), (1, 0), (5, 9), (7, 1)],
+            (5, 6): [(0, 0), (0, 8), (3, 4), (6, 0)],
+            (5, 7): [(0, 5), (0, 9), (5, 0), (7, 3)],
+            (5, 8): [(1, 9), (4, 9), (7, 2), (7, 8)],
+            (6, 1): [(0, 8), (4, 4), (7, 0), (7, 5)],
+            (6, 2): [(2, 0), (4, 3), (4, 9), (7, 7)],
+            (6, 3): [(3, 4), (6, 0), (7, 3), (7, 9)],
+            (6, 4): [(0, 5), (3, 9), (4, 3), (7, 3)],
+            (6, 5): [(0, 4), (3, 0), (4, 6), (7, 6)],
+            (6, 6): [(3, 5), (6, 9), (7, 0), (7, 6)],
+            (6, 7): [(2, 9), (4, 0), (4, 6), (7, 2)],
+            (6, 8): [(0, 1), (4, 5), (7, 4), (7, 9)],
+        }
 
-    def _matrix_details(self, data_bit_per_origami: int, parity_number: int) -> object:
+    @staticmethod
+    def get_checksum_relation():
+        return {
+            (3, 4): [(0, 0), (0, 1), (0, 2), (0, 3), (0, 4), (1, 0), (2, 0), (3, 0), (3, 3)],
+            (3, 5): [(0, 5), (0, 6), (0, 7), (0, 8), (0, 9), (1, 9), (2, 9), (3, 9), (3, 6)],
+            (4, 4): [(4, 0), (5, 0), (6, 0), (7, 0), (7, 1), (7, 2), (7, 3), (7, 4), (4, 3)],
+            (4, 5): [(7, 5), (7, 6), (7, 7), (7, 8), (7, 9), (6, 9), (5, 9), (4, 9), (4, 6)]
+        }
+
+    def _matrix_details(self, data_bit_per_origami: int) -> object:
         """
         Returns the relationship of the matrix. Currently all the the relationship is hardcoded.
         This method returns the following details:
@@ -70,16 +100,14 @@ class Origami:
                  checksum_bit_relation: Checksum bit mapping
 
         """
-        parity_bit_relation = self.get_parity_relation(parity_number)
-        checksum_bit_relation = self.get_checksum_relation(parity_number)
+        parity_bit_relation = self.get_parity_relation()
+        checksum_bit_relation = self.get_checksum_relation()
 
         data_index_orientation = set([i for v in checksum_bit_relation.values() for i in v])
         orientation_bits = set([(1, 0), (1, 9), (6, 0), (6, 9)])
         index_bits = set([(2, 0), (3, 0), (4, 0)])
         data_index = data_index_orientation - orientation_bits
         data_index = sorted(list(data_index))
-        print("<----------data_bit_per_origami----------->")
-        print(data_bit_per_origami)
         data_bits = data_index[:data_bit_per_origami]
         index_bits = data_index[data_bit_per_origami: ]
         # data_bits = data_index - index_bits
@@ -96,63 +124,60 @@ class Origami:
 
     def create_initial_matrix_from_binary_stream(self, binary_stream: str, index: int) -> object:
         """
-        Inserts droplet data, orientation, and index bits into a matrix.
-
-        :param binary_stream: Binary data to encode in the matrix
-        :param index: Index value to encode
-        :return: Matrix with data, orientation, and index bits inserted
+        Insert droplet data, orientation and index bit in the matrix
+        :param binary_stream: Binary data that need to be encoded in the matrix
+        :param index: Indexing of the matrix
+        :return: data_matrix: Matrix with droplet data, index and orientation bits
         """
         binary_list = list(binary_stream)
-        data_matrix = np.full((self.row, self.column), -1)  # Initialize with -1
+        data_matrix = np.full((self.row, self.column), -1)  # All the cell of the matrix will have initial value -1.
 
-        # Insert data bits
-        for i, (row, col) in enumerate(self.matrix_details["data_bits"]):
-            data_matrix[row][col] = binary_list[i]
+        # Putting the data into matrix
+        for i, bit_index in enumerate(self.matrix_details["data_bits"]):
+            data_matrix[bit_index[0]][bit_index[1]] = binary_list[i]
 
-        # Insert orientation bits
-        for i, (row, col) in enumerate(self.matrix_details["orientation_bits"]):
-            data_matrix[row][col] = self.matrix_details['orientation_data'][i]
+        # Putting orientation data
+        for i, bit_index in enumerate(self.matrix_details["orientation_bits"]):
+            data_matrix[bit_index[0]][bit_index[1]] = self.matrix_details['orientation_data'][i]
 
-        # Check if index is within supported range
-        max_index = 2 ** len(self.matrix_details["indexing_bits"])
-        if index >= max_index:
-            self.logger.error(f"Index {index} exceeds supported maximum of {max_index - 1}")
-            raise ValueError(f"Index {index} exceeds maximum supported index of {max_index - 1}")
+        # Putting indexing bits.
+        # Checking if current index is more than supported.
+        if index >= 2 ** len(self.matrix_details["indexing_bits"]):
+            self.logger.error(
+                'Maximum support index is {maximum_input}. But given index is {index}'.format(
+                    maximum_input=2 ** len(self.matrix_details["indexing_bits"]),
+                    index=index
+                ))
+            raise ValueError("Maximum support of index exceed")
+        index_len = '0' + str(len(self.matrix_details["indexing_bits"])) + 'b'
+        index_bin = list(format(index, index_len))
+        # Set the indexing
+        for i, bit_index in enumerate(self.matrix_details["indexing_bits"]):
+            data_matrix[bit_index[0]][bit_index[1]] = index_bin[i]
 
-        # Convert index to binary with padding
-        index_bits_required = len(self.matrix_details["indexing_bits"])
-        index_bin = format(index, f'0{index_bits_required}b')
-
-        # Insert index bits
-        for i, (row, col) in enumerate(self.matrix_details["indexing_bits"]):
-            data_matrix[row][col] = index_bin[i]
-
-        self.logger.info("Inserted droplet data, orientation, and index bits into the matrix")
+        self.logger.info("Droplet data and index has been inserted")
         return data_matrix
-
 
     @staticmethod
     def _xor_matrix(matrix, relation):
         """
-        Applies XOR on matrix data bits using a provided mapping.
-
-        :param matrix: 2D matrix with binary data
-        :param relation: Dictionary mapping parity/checksum bit positions to related data bit positions
-        :return: Updated matrix with XOR-computed values
+        XOR the data using the relation
+        :param matrix: Matrix upon which XOR will be implemented
+        :param relation: mapping of the XOR data. May contain checksum/parity mapping.
+        :return: matrix: Matrix with the XOR value
         """
-        for (parity_row, parity_col), data_bit_positions in relation.items():
-            # Extract values from the matrix for the given data bit positions
-            data_values = [int(matrix[row][col]) for row, col in data_bit_positions]
-
-            # Compute XOR of all related data bits
-            xor_result = reduce(lambda x, y: x ^ y, data_values)
-
-            # Store the XOR result in the corresponding parity/checksum bit position
-            matrix[parity_row][parity_col] = xor_result
+        for single_xor_relation in relation:
+            # Getting the all the data bits related to a specific parity bit
+            data_bits_value = [int(matrix[a[0]][a[1]]) for a in
+                               relation[single_xor_relation]]
+            # XORing all the data bits
+            xored_value = reduce(lambda i, j: int(i) ^ int(j), data_bits_value)
+            # Update the parity bit with the XORed value
+            matrix[single_xor_relation[0]][single_xor_relation[1]] = int(xored_value)
 
         return matrix
 
-    def _encode(self, binary_stream, index, data_bit_per_origami, parity_number):
+    def _encode(self, binary_stream, index, data_bit_per_origami):
         """
         Handle the encoding. Most of the time handle xoring.
         :param binary_stream: Binary value of the data
@@ -164,7 +189,7 @@ class Origami:
         # error encoding. So the parity bits will have the initial value of -1
         self.number_of_bit_per_origami = data_bit_per_origami
         self.matrix_details, self.parity_bit_relation, self.checksum_bit_relation = \
-            self._matrix_details(data_bit_per_origami, parity_number)
+            self._matrix_details(data_bit_per_origami)
         self.data_bit_to_parity_bit = Origami.get_data_bit_to_parity_bit(self.parity_bit_relation)
         encoded_matrix = self.create_initial_matrix_from_binary_stream(binary_stream, index)
 
@@ -347,101 +372,106 @@ class Origami:
         return len(incorrect_indexes) == 0
 
     def _decode(self, matrix, threshold_parity, threshold_data,
-            maximum_number_of_error, false_positive):
+                maximum_number_of_error, false_positive):
         """
-        Attempts to decode a matrix by flipping bits to match parity and orientation rules.
-        
-        :param matrix: Matrix to decode
-        :param threshold_parity: Parity mismatch tolerance threshold
-        :param threshold_data: Data mismatch tolerance threshold
-        :param maximum_number_of_error: Max number of bit flips to try
-        :param false_positive: False positive tolerance
-        :return: Decoded matrix if successful, else -1
+        :param matrix: Matrix that will be decoded
+        :param threshold_parity: Threshold value of parity cell to be considered as error
+        :param threshold_data: Threshold value of data cell to be considered as error
+        :param maximum_number_of_error: Maximum number of error that will be checked
+        :param false_positive: Number of false positive that will be checked
+        :return:
         """
+        # We will try to decode multiple origami so we are making the variable empty at the first
         matrix_details = {}
-
-        # Initial matrix check without altering any bit
-        _, matrix_weight, probable_errors = self._get_matrix_weight(
-            matrix, [], threshold_parity, threshold_data, false_positive
-        )
-
-        self.logger.debug(f"Initial matrix weight: {matrix_weight}, Probable errors: {probable_errors}")
-
+        # Will check the matrix weight first.
+        # If matrix weight is zero that means all the parity matched
+        # We will reduce this matrix weight by a greedy approach
+        _, matrix_weight, probable_error = self._get_matrix_weight(matrix, [], threshold_parity,
+                                                                   threshold_data, false_positive)
         if matrix_weight == 0:
-            self.logger.info("No parity mismatch found initially.")
-            recovered = self.return_matrix(matrix, [])
-            if recovered != -1:
-                return recovered
+            # All parity matched now we will check orientation and checksum
+            self.logger.info("No parity mismatch found at the first step")
+            single_recovered_matrix = self.return_matrix(matrix, [])
+            if not single_recovered_matrix == -1:
+                # If we don't get -1 then it means orientation and checksum also matched
+                # So we will return the recovered matrix
+                return single_recovered_matrix
+        # We will alter each of the probable error one at a time and recalculate the matrix weight
+        for single_error in probable_error:
+            matrix_details[tuple(single_error)] = {}
+            changed_matrix, matrix_details[tuple(single_error)]["error_value"], \
+            matrix_details[tuple(single_error)]["probable_error"] = \
+                self._get_matrix_weight(matrix, [single_error], threshold_parity, threshold_data,
+                                        false_positive)
+            # If after altering one bit only matrix_weight becomes zero then we will check checksum and parity
+            if matrix_details[tuple(single_error)]["error_value"] == 0:
+                self.logger.info("After altering one bit, all the parity matched")
+                single_recovered_matrix = self.return_matrix(changed_matrix, [single_error])
+                if not single_recovered_matrix == -1:
+                    return single_recovered_matrix
+        # We will sort the matrix based on the matrix weight
+        matrix_details = {k: v for k, v in sorted(matrix_details.items(), key=lambda item: item[1]["error_value"])}
 
-        # Try fixing by flipping one probable bit
-        for error in probable_errors:
-            key = tuple(error)
-            changed_matrix, weight, new_probable_errors = self._get_matrix_weight(
-                matrix, [error], threshold_parity, threshold_data, false_positive
-            )
-
-            matrix_details[key] = {
-                "error_value": weight,
-                "probable_error": new_probable_errors
-            }
-
-            if weight == 0:
-                self.logger.info("All parity matched after flipping one bit.")
-                recovered = self.return_matrix(changed_matrix, [error])
-                if recovered != -1:
-                    return recovered
-
-        # Sort probable fixes by lowest error weight
-        matrix_details = dict(sorted(matrix_details.items(), key=lambda x: x[1]["error_value"]))
-
-        # Try combinations of multiple bit flips (up to `maximum_number_of_error`)
-        for base_error, detail in matrix_details.items():
-            checked_combination = [base_error]
-            pending_errors = detail["probable_error"]
-            retry_queue = {}
-
-            while len(checked_combination) < maximum_number_of_error and pending_errors:
+        for single_error in matrix_details:
+            error_combination_checked_so_far = [single_error]
+            # We will alter all the probable error list which we got during calculating the matrix weight
+            errors_that_will_be_checked = matrix_details[single_error]["probable_error"]
+            # This queue will contains which cell to alter next
+            queue_for_single_error = {}
+            # we will not check more than the maximum number of error
+            while len(error_combination_checked_so_far) < maximum_number_of_error and len(
+                    errors_that_will_be_checked) >= 1:
+                # Contains all the matrix weights. Which will be sorted to choose next bit flip
                 matrix_weights = {}
+                for single_error_in_probable_error in errors_that_will_be_checked:
+                    will_check_now = error_combination_checked_so_far + [single_error_in_probable_error]
+                    # Find matrix error after altering will_check_now
+                    changed_matrix, single_probable_matrix_weight, single_probable_error = self._get_matrix_weight(
+                        matrix,
+                        will_check_now,  # Alter this one
+                        threshold_parity,
+                        threshold_data,
+                        false_positive)
 
-                for error_candidate in pending_errors:
-                    test_combination = checked_combination + [error_candidate]
-                    test_matrix, test_weight, test_probable_errors = self._get_matrix_weight(
-                        matrix, test_combination, threshold_parity, threshold_data, false_positive
-                    )
+                    if single_probable_matrix_weight == 0:
+                        single_recovered_matrix = self.return_matrix(changed_matrix, will_check_now)
+                        if not single_recovered_matrix == -1:
+                            return single_recovered_matrix
 
-                    if test_weight == 0:
-                        recovered = self.return_matrix(test_matrix, test_combination)
-                        if recovered != -1:
-                            return recovered
-
-                    # Store weight and possible next moves
-                    if test_weight not in matrix_weights:
-                        matrix_weights[test_weight] = {
-                            "cell_checked_so_far": [],
-                            "probable_error": []
-                        }
-
-                    matrix_weights[test_weight]["cell_checked_so_far"].append(tuple(test_combination))
-                    matrix_weights[test_weight]["probable_error"].append(test_probable_errors)
-
-                # Keep top-2 lowest matrix weights
-                sorted_weights = sorted(matrix_weights.keys())
-                min_weights = sorted_weights[:2] if len(sorted_weights) >= 2 else [sorted_weights[0]]
-
-                for mw in min_weights:
-                    self.logger.info(f"Current matrix weight: {mw} with path: {matrix_weights[mw]['cell_checked_so_far']}")
-                    for i, combo in enumerate(matrix_weights[mw]["cell_checked_so_far"]):
-                        retry_queue[combo] = matrix_weights[mw]["probable_error"][i]
-
-                # Prepare for next loop with most promising path
-                for combo in sorted(retry_queue.keys(), key=len, reverse=True):
-                    checked_combination = list(combo)
-                    pending_errors = set(retry_queue[combo]) - set(checked_combination)
-                    del retry_queue[combo]
-                    if len(checked_combination) < maximum_number_of_error:
+                    # Add this newly gotten matrix weight to the variable which contains all the matrix weights
+                    if single_probable_matrix_weight in matrix_weights:
+                        # This error value is already there so we will append the new value in the list
+                        matrix_weights[single_probable_matrix_weight]["probable_error"].append(single_probable_error)
+                        matrix_weights[single_probable_matrix_weight]["cell_checked_so_far"].append(
+                            tuple(will_check_now))
+                    else:
+                        matrix_weights[single_probable_matrix_weight] = {}
+                        matrix_weights[single_probable_matrix_weight]["probable_error"] = [single_probable_error]
+                        matrix_weights[single_probable_matrix_weight]["cell_checked_so_far"] = [tuple(will_check_now)]
+                try:
+                    # We will keep just lowest two matrix weight in the queue
+                    minimum_error_values = sorted(matrix_weights.keys())[0:2]
+                except:  # matrix_weights doesn't have two entry. so will get a key exception
+                    minimum_error_values = [min(sorted(matrix_weights.keys()))]
+                self.logger.info("current matrix weight: " + str(minimum_error_values[0]) + " after altering the cell: "
+                                 + str(matrix_weights[minimum_error_values[0]]["cell_checked_so_far"]))
+                # Iter over the number of items that are in this minimum error value and make a queue from that
+                # making this queue cause some of the minimum error value will have more than one indexes
+                for minimum_error_value in minimum_error_values:
+                    for i in range(len(matrix_weights[minimum_error_value]["probable_error"])):
+                        queue_for_single_error[matrix_weights[minimum_error_value]["cell_checked_so_far"][i]] = \
+                            matrix_weights[minimum_error_value]["probable_error"][i]
+                for i in sorted(queue_for_single_error, key=len, reverse=True):
+                    error_combination_checked_so_far = list(i)
+                    errors_that_will_be_checked = set(queue_for_single_error[i]).difference(
+                        set(error_combination_checked_so_far))
+                    del queue_for_single_error[i]
+                    if len(error_combination_checked_so_far) < maximum_number_of_error:
                         break
-
-        # No solution found
+                    else:
+                        continue
+        # If it comes to this point that means we were not able return a correct matrix so far.
+        # And we don't have any options
         return -1
 
     def return_matrix(self, correct_matrix, error_locations):
@@ -474,9 +504,6 @@ class Origami:
                 'binary_data'] = \
                 self._extract_text_and_index(correct_matrix)
             self.logger.info("Origami error fixed. Error corrected: " + str(error_locations))
-            print("<----------decoded_matrix--------->")
-            print(correct_matrix)
-            print("<--------------------------------->")
             return single_recovered_matrix
         else:  # If orientation or checksum doesn't match we will return -1
             self.logger.info("Orientation/checksum didn't match")
@@ -516,102 +543,124 @@ class Origami:
 
         return index_decimal, text_bin_data
 
-    def _get_matrix_weight(self, matrix, changing_location, threshold_parity, threshold_data, false_positive):
+    def _get_matrix_weight(self, matrix, changing_location, threshold_parity, threshold_data,
+                           false_positive):
         """
-        Calculates the "matrix weight", indicating error severity in the matrix.
-        
-        :param matrix: The matrix to analyze
-        :param changing_location: List of (row, col) positions to flip before analysis
-        :param threshold_parity: Threshold for parity error significance
-        :param threshold_data: Threshold for data error significance
-        :param false_positive: Allowance for ignoring false positives
-        :return: (modified_matrix, matrix_weight, probable_error_data_parity)
+        Matrix weight indicates how much error does this individual matrix contains.
+        More the matrix error is more error this matrix contains.
+        We will use a greedy approach to reduce this matrix error.
+
+        :param matrix: Whose weight will be calculated
+        :param changing_location: Locations of the matrix that will be changed before calculating the weight
+        :param threshold_parity: Threshold value for consider a parity bit to have an error
+        :param threshold_data: Threshold value for consider a data bit to have an error
+        :param false_positive: Will we check false positive or not
+        :return:
         """
+        # We will change few bits (based on changing_locaiton parameter).
+        # If we don't make a deep copy it will modify the original matrix that was passed.
         matrix_copy = copy.deepcopy(matrix)
-
-        false_positive_data = 0
-        false_positive_parity = 0
-
-        # Flip the bits at the specified positions
-        for (i, j) in changing_location:
-            if matrix_copy[i][j] == 0:
-                matrix_copy[i][j] = 1
+        total_false_positive_added = 0  # False positive added from data only
+        false_positive_added_in_parity = 0  # False positive added from parity only
+        # Will filp the bit
+        for single_changing_location in changing_location:
+            if matrix_copy[single_changing_location[0]][single_changing_location[1]] == 0:
+                matrix_copy[single_changing_location[0]][single_changing_location[1]] = 1
             else:
-                matrix_copy[i][j] = 0
-                if (i, j) in self.parity_bit_relation:
-                    false_positive_parity += 1
+                if single_changing_location in self.parity_bit_relation:
+                    false_positive_added_in_parity += 1
                 else:
-                    false_positive_data += 1
-
-        # Identify parity bits that are incorrect
-        parity_correct, parity_incorrect = self._find_possible_error_location(matrix_copy)
-        probable_error_indexes = [pos for p in parity_incorrect for pos in self.parity_bit_relation[p]]
-
-        # Analyze checksum mismatches
-        checksum_errors = []
-        checksum_related_errors = []
-        for checksum_index, related_cells in self.checksum_bit_relation.items():
-            xor_value = reduce(lambda x, y: x ^ y, [int(matrix_copy[i][j]) for (i, j) in related_cells])
-            expected_value = matrix_copy[checksum_index[0]][checksum_index[1]]
-
-            if xor_value != expected_value:
-                checksum_errors.append(checksum_index)
-                probable_error_indexes.append(checksum_index)
-                checksum_related_errors.extend(related_cells)
-
-        # Weigh data bit errors by frequency and checksum involvement
+                    total_false_positive_added += 1
+                matrix_copy[single_changing_location[0]][single_changing_location[1]] = 0
+        # Check which parity bit matched and which didn't
+        parity_bit_indexes_correct, parity_bit_indexes_incorrect = self._find_possible_error_location(
+            matrix_copy)
+        # Marking all the indices that is related to the incorrect parity bit
+        probable_error_indexes = [j for i in parity_bit_indexes_incorrect for j in self.parity_bit_relation[i]]
+        # Marking all the indexes that is related to the unmatched checksum
+        probable_error_from_checksum = []
+        # Checksum indexes that didn't match after xoring it's related indices.
+        unmatched_checksum = []
+        for single_checksum_index, single_checksum_relation in self.checksum_bit_relation.items():
+            nearby_values = [int(matrix_copy[a[0]][a[1]]) for a in single_checksum_relation]
+            xored_value = reduce(lambda i, j: int(i) ^ int(j), nearby_values)
+            # As it didn't match it might have some error
+            if matrix_copy[single_checksum_index[0]][single_checksum_index[1]] != xored_value:
+                unmatched_checksum.append(single_checksum_index)
+                probable_error_indexes.append(single_checksum_index)
+                probable_error_from_checksum.extend(
+                    single_checksum_relation)  # This will be the second parameter to order the error list
+        # probable_error_index = [item for item in Counter(probable_error_indexes).most_common() if item[1] >= 3]
+        # If the error also present in the probable checksum error then
+        # we will increase the number of occurrence of these index
+        # All Probable error indexes expect the checksum after checking the temporary weight.
+        # Will contain { temporary_weight: [all indexes of same temporary weight] }
         probable_data_error = {}
-        for (pos, count) in Counter(probable_error_indexes).most_common():
-            weight = count + (
-                2 if pos in checksum_related_errors and pos in checksum_errors else
-                1 if pos in checksum_related_errors or pos in checksum_errors else 0
-            )
-            probable_data_error.setdefault(weight, []).append(pos)
-
-        # Collect parity bit errors linked from data positions
-        all_probable_parity = []
-        for pos in probable_data_error.values():
-            for data_pos in pos:
-                all_probable_parity.extend(self.data_bit_to_parity_bit[data_pos])
-
-        all_probable_parity.extend(parity_incorrect)
-        counted_parity_errors = Counter(all_probable_parity).most_common()
-
-        # Determine false positive limits
-        fp_data_limit = (false_positive + 1) // 2
-        fp_parity_limit = false_positive // 2 if false_positive else 0
-
-        matrix_weight = 0
+        # Final parity error. After checking the temporary weight
         probable_parity_error = []
+        # Parity bit error that is taken from error data bit
+        probable_parity_error_all = []
+        # Putting the temporary weight on each data and checksum indexes.
+        # The default temporary weight will be it's number of occurrence from unmatched parity error.
+        for item in Counter(probable_error_indexes).most_common():
+            if item[0] in probable_error_from_checksum and item[0] in unmatched_checksum:
+                temp_weight = item[1] + 2
+            elif item[0] in probable_error_from_checksum:
+                temp_weight = item[1] + 1
+            elif item[0] in unmatched_checksum:
+                temp_weight = item[1] + 1
+            else:
+                temp_weight = item[1]
+            # threshold_parity = item[1] + 1 if item[0] in probable_error_from_checksum else item[1]
+            # if threshold_parity < threshold_data:
+            #     break
+            probable_data_error.setdefault(temp_weight, []).append(item[0])
+            probable_parity_error_all.extend(self.data_bit_to_parity_bit[item[0]])
 
-        # Process parity errors
-        for (pos, weight) in counted_parity_errors:
-            matrix_weight += weight
-            if weight >= threshold_parity:
-                if matrix_copy[pos[0]][pos[1]] == 0:
-                    probable_parity_error.append(pos)
-                elif false_positive_parity < fp_parity_limit:
-                    probable_parity_error.append(pos)
-                    false_positive_parity += 1
+        probable_parity_error_all.extend(parity_bit_indexes_incorrect)
+        probable_parity_error_all = Counter(probable_parity_error_all).most_common()
+        # Putting temporary weight on each parity indexes.
+        # The default temporary weight will be number of occurrence of the parity bit from the data bit
+        # The temporary weight will add 10 more if the specific parity bit didn't match in the first place.
+        if false_positive:
+            max_false_positive_in_parity = false_positive // 2
+            if false_positive % 2 == 0:
+                max_false_positive_in_data = false_positive // 2
+            else:
+                max_false_positive_in_data = false_positive // 2 + 1
+        else:
+            max_false_positive_in_parity = 0
+            max_false_positive_in_data = 0
 
-        # Process data bit errors
-        probable_data_errors = []
-        for weight in sorted(probable_data_error.keys(), reverse=True):
-            if weight >= threshold_data:
-                for pos in probable_data_error[weight]:
-                    if matrix_copy[pos[0]][pos[1]] == 0:
-                        probable_data_errors.append(pos)
-                    elif false_positive_data < fp_data_limit:
-                        probable_data_errors.append(pos)
-                        false_positive_data += 1
-            matrix_weight += weight * len(probable_data_error[weight])
+        # Initially matrix weight is 0
+        matrix_weight = 0
+        # Sum the probability of error for each cell for the parity bit.
+        # Will also check how many false positive we are adding
+        for item in probable_parity_error_all:
+            temp_weight = item[1]
+            if temp_weight >= threshold_parity:
+                if matrix_copy[item[0][0]][item[0][1]] == 0:
+                    probable_parity_error.append(item[0])
+                elif max_false_positive_in_parity > false_positive_added_in_parity:
+                    probable_parity_error.append(item[0])
+                    false_positive_added_in_parity += 1
+            matrix_weight += temp_weight
+            # The parity that have more temporary weight have high probability of error.
 
-        # Combine final probable error locations
-        probable_error_data_parity = probable_data_errors + probable_parity_error
-        normalized_weight = matrix_weight / len(parity_correct) if parity_correct else matrix_weight
+        probable_error = []
+        # Sum the probability of error for each cell for data bit
+        for key in sorted(probable_data_error.keys(), reverse=True):
+            if key >= threshold_data:
+                for i in probable_data_error[key]:
+                    if matrix_copy[i[0]][i[1]] == 0:
+                        probable_error.append(i)
+                    elif max_false_positive_in_data > total_false_positive_added:
+                        probable_error.append(i)
+                        total_false_positive_added += 1
+            matrix_weight += key * len(probable_data_error[key])
+        probable_error_data_parity = probable_error + probable_parity_error
 
-        return matrix_copy, normalized_weight, probable_error_data_parity
-
+        return matrix_copy, matrix_weight / len(parity_bit_indexes_correct), probable_error_data_parity
 
     def decode(self, data_stream, threshold_data, threshold_parity,
                maximum_number_of_error, false_positive):

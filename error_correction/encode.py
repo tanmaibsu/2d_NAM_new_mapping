@@ -11,7 +11,6 @@ def read_args():
     parser = argparse.ArgumentParser(description="Encode a given file to a list of origami matrices.")
     parser.add_argument("-f", "--file_in", help="file to encode", required=True)
     parser.add_argument("-o", "--file_out", help="File to write the output", required=True)
-    parser.add_argument("-pn", "--parity_number", help="Number of parity for encoding", default=40)
     parser.add_argument("-r", "--redundancy", help="Percentage of redundant origami", default=50, type=float)
     parser.add_argument("-fo", "--formatted_output", help="Will print the origami as matrix instead of single line",
                         action="store_true")
@@ -29,8 +28,7 @@ def main():
     """
     args = read_args()
     dnam_object = ProcessFile(verbose=args.verbose)
-    print(args.parity_number)
-    dnam_object.encode(os.path.abspath(args.file_in), os.path.abspath(args.file_out), args.formatted_output, int(args.parity_number))
+    dnam_object.encode(os.path.abspath(args.file_in), os.path.abspath(args.file_out), args.formatted_output)
 
 
 if __name__ == '__main__':
