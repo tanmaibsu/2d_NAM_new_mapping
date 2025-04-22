@@ -18,7 +18,7 @@ def read_args():
 
     parser.add_argument("-o", "--file_out", help="File to write output", required=True)
     parser.add_argument("-fz", "--file_size", help="File size that will be decoded", type=int, default=20)
-    parser.add_argument("-p", "--parity_number", help="Number of Parity to decode", type=int, default=40)
+    parser.add_argument("-pn", "--parity_number", help="Number of Parity to decode", type=int, default=40)
     parser.add_argument('-tp', '--threshold_parity',
                         help='Minimum weight for a parity bit cell to be consider that as an error', default=2, type=int)
     parser.add_argument("-td", "--threshold_data",
