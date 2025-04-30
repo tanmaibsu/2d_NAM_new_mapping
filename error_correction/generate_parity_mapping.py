@@ -1,5 +1,7 @@
 """
-This file will create the mapping scheme for dNAM with 8x10 origami
+This will generate the parity mapping for dNAM with 8x10 origami. 
+The file takes parity number and parity coverage as an argument.
+Finally, the parity mapping is written in a text file.
 """
 import random
 from collections import defaultdict
@@ -82,7 +84,7 @@ def is_valid(point, selected):
     ]
     return all(m not in selected for m in mirrors) 
 
-# Now pick 8 non-mirrored points for each parity position
+# Now pick non-mirrored points for each parity position
 def generate_seeds_4_unique(unique_parity_positions, all_except_parity, parity_coverage):
     parity_to_positions = {}
 
@@ -165,7 +167,6 @@ def main():
     print("complete_parity_mapping", complete_parity_mapping)
     file_name = create_file_name(int(args.parity_number))
     write_in_txt(complete_parity_mapping, file_name)
-    return complete_parity_mapping
 
 
 if __name__ == '__main__':
