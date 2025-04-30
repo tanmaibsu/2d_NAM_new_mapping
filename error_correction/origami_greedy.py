@@ -36,10 +36,12 @@ class Origami:
         parity_relation = {}
         print(parity_number)
         if parity_number == 16:
+            print(" I am here parity 16")
             parity_relation = pcm.parity_mapping_16() 
-        if parity_number == 24:
+        elif parity_number == 24:
             parity_relation = pcm.parity_mapping_24() 
         else:
+            print(" I am here parity 40")
             parity_relation = pcm.parity_mapping_40() 
         return parity_relation
             
@@ -47,10 +49,12 @@ class Origami:
     def get_checksum_relation(parity_number=40):
         checksum_relation = {}
         if parity_number == 16:
+            print(" I am here checksum 16")
             checksum_relation = pcm.checksum_mapping_16()
-        if parity_number == 24:
+        elif parity_number == 24:
             checksum_relation = pcm.checksum_mapping_24()
         else:
+            print(" I am here checksum 40")
             checksum_relation = pcm.checksum_mapping_40()
         return checksum_relation
 
