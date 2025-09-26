@@ -35,7 +35,7 @@ class ProcessFile(Origami):
         :return:
         """
         total_capacity = self.row * self.column
-        print(self.get_parity_relation(parity_number))
+        # print(self.get_parity_relation(parity_number))
         checksum_allocation = len(self.get_checksum_relation(parity_number))
         parity_allocation = len(self.get_parity_relation(parity_number))
         available_capacity = total_capacity - checksum_allocation - parity_allocation - 4
@@ -63,20 +63,16 @@ class ProcessFile(Origami):
             self.logger.error("Error opening the file")
             return -1, -1, -1, -1  # simulation file expect this format
         data = file_in.read()
+        print("data---->", data)
         file_in.close()
         # Converting data into binary
         data_in_binary = ''.join(format(letter, '08b') for letter in data)
+        print("len of data_in_binary--->", len(data_in_binary))
         # divide the origami based on number of bit per origami
 
         bits_needed_to_store = len(data_in_binary)
         index_bits, data_bit, segment_size = self._find_optimum_index_bits(bits_needed_to_store, parity_number)
-        print("<-----------index bits----------->")
-        print(index_bits)
-        print("<-------------------------------->")
-        print("<-----------data bit----------->")
-        print(data_bit)
-        print("<---------------segment_size----------------->")
-        print(segment_size)
+    
         # Divide into origami from datastream
         for index in range(segment_size):
             start = index * data_bit
@@ -97,14 +93,14 @@ class ProcessFile(Origami):
 
     def single_origami_decode(self, single_origami, ior_file_name, correct_dictionary, common_parity_index,
                           minimum_temporary_weight, maximum_number_of_error, false_positive,
-                          induced_errors, errors_positions):
+                          induced_errors, errors_positions, original_origami, orig_idx):
         start_time = time.time()
         index, origami_data = single_origami
 
         self.logger.info("Decoding origami (%d): %s", index, origami_data)
         if len(origami_data) != self.row * self.column:
             self.logger.warning("Origami (%d) is incomplete. Expected length: %d, Found: %d",
-                                index, self.row * self.column, len(origami_data))
+                                index, self.row * self.column, len(origami_data[0]))
             return
 
         try:
@@ -116,6 +112,19 @@ class ProcessFile(Origami):
             return
 
         if decoded_matrix == -1:
+            if ior_file_name:
+                decoding_time = round(time.time() - start_time, 3)
+                # decoded_stream = self.matrix_to_data_stream(decoded_matrix['matrix'])
+                # success = origami_data == decoded_stream
+                log_entry = (
+                    f"{orig_idx}, {origami_data},{errors_positions},"
+                    f"{original_origami}, False, {decoding_time}\n"
+                )
+                try:
+                    with open(ior_file_name, "a") as ior_file:
+                        ior_file.write(log_entry)
+                except Exception as e:
+                    self.logger.error("Failed to write to IOR file for origami (%d): %s", index, str(e))
             self.logger.warning("Decoding unsuccessful for origami (%d)", index)
             return
 
@@ -144,10 +153,10 @@ class ProcessFile(Origami):
         if ior_file_name:
             decoding_time = round(time.time() - start_time, 3)
             decoded_stream = self.matrix_to_data_stream(decoded_matrix['matrix'])
+            success = original_origami == decoded_stream
             log_entry = (
-                f"{index},{origami_data},{induced_errors},{errors_positions},{status},{error_count},"
-                f"{str(error_locations).replace(',', ' ')},{orientation},{decoded_index},"
-                f"{decoded_stream},{decoded_data},{decoding_time}\n"
+                f"{orig_idx}, {origami_data},{induced_errors},{decoded_stream},"
+                f"{original_origami}, {error_count}, {success}, {decoding_time}\n"
             )
             try:
                 with open(ior_file_name, "a") as ior_file:
@@ -158,7 +167,7 @@ class ProcessFile(Origami):
         return [decoded_matrix, status]
 
 
-    def decode(self, data, induced_errors, errors_positions, file_out, file_size, parity_number,
+    def decode(self, data, original_origami, orig_idx, induced_errors, errors_positions, file_out, file_size, parity_number,
             threshold_data, threshold_parity, maximum_number_of_error,
             individual_origami_info, false_positive, correct_file=False):
 
@@ -173,8 +182,7 @@ class ProcessFile(Origami):
             try:
                 with open(ior_file_name, "a") as ior_file:
                     ior_file.write(
-                        "Line number in file, origami, Induced Errors, Errors Positions, status,error,error location,"
-                        "orientation,decoded index,decoded origami, decoded data,decoding time\n")
+                        "node, origami data, Induced Errors, decoded stream, original_origami, error_count, success, decoding time\n")
             except Exception as e:
                 self.logger.error("IOR file creation failed: %s", e)
                 return
@@ -203,7 +211,9 @@ class ProcessFile(Origami):
             maximum_number_of_error=maximum_number_of_error,
             false_positive=false_positive,
             induced_errors=induced_errors,
-            errors_positions=errors_positions
+            errors_positions=errors_positions,
+            original_origami = original_origami,
+            orig_idx = orig_idx,
         )
 
         # Use multiprocessing for decoding
