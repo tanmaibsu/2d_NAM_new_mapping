@@ -1,147 +1,190 @@
 import time
 from collections import Counter
-import multiprocessing
-from functools import partial
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import math
 from log import get_logger
 from origami_greedy import Origami
-# from origamiprepostprocess import OrigamiPrePostProcess
 import csv
-import random
-
+import json
+import os
 
 class ProcessFile(Origami):
     """
-    Decoding and encoding will call this class. And this class will call
-    the origami method to handle individual origami. This file will also call
+    Orchestrates encoding/decoding of origami segments, buffers per-origami
+    results in memory, and can flush them to CSV on demand.
     """
 
     def __init__(self, verbose):
-        """
-        This will combine all the origami and reconstruct the file
-        :param verbose:
-        """
         super().__init__(verbose=verbose)
-        self.verbose = 1
+        self.verbose = verbose
         self.logger = get_logger(verbose, __name__)
-        # Will be updated later during checking number how much redundancy we will need
+
+        # Per-origami buffers (persist across decode calls if accumulate=True)
+        self.node = []
+        self.origami_data = []
+        self.decoded_stream = []
+        self.errors_positions = []
+        self.success = []
+        self.decoded_time = []
+
+        # Default (can be overridden by your layout)
         self.number_of_bit_per_origami = 29
 
+    # ---------- Buffer helpers ----------
+    def reset_ior_buffers(self):
+        """Clear buffered per-origami rows (use before a new batch, if desired)."""
+        self.node.clear()
+        self.origami_data.clear()
+        self.decoded_stream.clear()
+        self.errors_positions.clear()
+        self.success.clear()
+        self.decoded_time.clear()
+
+    def write_ior_csv(self, csv_path):
+        """Flush current buffers to a CSV file."""
+        header = ["node", "origami_data", "decoded_stream",
+                  "errors_positions", "success", "decoding_time"]
+        try:
+            with open(csv_path, "w", newline="") as f:
+                writer = csv.writer(f)
+                writer.writerow(header)
+                for i in range(len(self.node)):
+                    err_pos = self.errors_positions[i]
+                    if not isinstance(err_pos, str):
+                        err_pos = json.dumps(err_pos)
+                    writer.writerow([
+                        self.node[i],
+                        self.origami_data[i],
+                        self.decoded_stream[i],
+                        err_pos,
+                        int(bool(self.success[i])),
+                        self.decoded_time[i],
+                    ])
+            self.logger.info("Wrote per-origami CSV: %s", csv_path)
+        except Exception as e:
+            self.logger.exception("Failed writing CSV %s: %s", csv_path, e)
+
+    def _append_data_4_io(self, orig_idx, origami_data, decoded_stream,
+                          errors_positions, success, decoding_time):
+        # Appends are atomic in CPython; safe enough with threads for this use.
+        self.node.append(orig_idx)
+        self.origami_data.append(origami_data)
+        self.decoded_stream.append(decoded_stream)
+        self.errors_positions.append(errors_positions)
+        self.success.append(bool(success))
+        self.decoded_time.append(decoding_time)
+
+    # ---------- Capacity helpers ----------
     def _find_optimum_index_bits(self, bits_needed_to_store, parity_number):
         """
-        Find the optimum number of index bits
-        :param bits_needed_to_store:
-        :param available_capacity:
-        :return:
+        Returns: (index_bits, data_bits_per_origami, segment_count)
         """
         total_capacity = self.row * self.column
-        # print(self.get_parity_relation(parity_number))
         checksum_allocation = len(self.get_checksum_relation(parity_number))
         parity_allocation = len(self.get_parity_relation(parity_number))
+        # Reserve 4 orientation bits by convention
         available_capacity = total_capacity - checksum_allocation - parity_allocation - 4
 
         for i in range(1, available_capacity):
-            capacity_after_index = available_capacity - i
-            index_bit_required = math.ceil(bits_needed_to_store / capacity_after_index)
-            if 2**i >= index_bit_required:
-                return i, capacity_after_index, index_bit_required
-        raise Exception("File size is to large to store in the given capacity")
+            data_bits_per_origami = available_capacity - i
+            segment_count = math.ceil(bits_needed_to_store / data_bits_per_origami)
+            if 2 ** i >= segment_count:
+                return i, data_bits_per_origami, segment_count
+        raise Exception("File size is too large to store in the given capacity")
 
+    # ---------- Encode ----------
     def encode(self, file_in, file_out, formatted_output=False, parity_number=40):
         """
-        Encode the file
-        :param file_in: File that need to be encoded
-        :param file_out: File where output will be saved
-        :param formatted_output: Output will written as a matrix
-        :return:
+        Returns: (segment_count, data_bits_per_origami) or (-1, -1) on failure
         """
         try:
-            file_in = open(file_in, 'rb')
-            file_out = open(file_out, "w")
+            with open(file_in, 'rb') as fin:
+                data = fin.read()
+            fout = open(file_out, "w")
         except Exception as e:
             self.logger.exception(e)
-            self.logger.error("Error opening the file")
-            return -1, -1, -1, -1  # simulation file expect this format
-        data = file_in.read()
-        print("data---->", data)
-        file_in.close()
-        # Converting data into binary
-        data_in_binary = ''.join(format(letter, '08b') for letter in data)
-        print("len of data_in_binary--->", len(data_in_binary))
-        # divide the origami based on number of bit per origami
+            self.logger.error("Error opening the file(s)")
+            return -1, -1
 
+        data_in_binary = ''.join(format(b, '08b') for b in data)
         bits_needed_to_store = len(data_in_binary)
-        index_bits, data_bit, segment_size = self._find_optimum_index_bits(bits_needed_to_store, parity_number)
-    
-        # Divide into origami from datastream
+        _, data_bit, segment_size = self._find_optimum_index_bits(bits_needed_to_store, parity_number)
+
         for index in range(segment_size):
             start = index * data_bit
             end = start + data_bit
             origami_bits = data_in_binary[start:end].ljust(data_bit, '0')  # pad if needed
-
             encoded_stream = self._encode(origami_bits, index, data_bit, parity_number)
 
             if formatted_output:
-                print(f"Matrix -> {index}", file=file_out)
-                self.print_matrix(self.data_stream_to_matrix(encoded_stream), in_file=file_out)
+                print(f"Matrix -> {index}", file=fout)
+                self.print_matrix(self.data_stream_to_matrix(encoded_stream), in_file=fout)
             else:
-                file_out.write(encoded_stream + '\n')
+                print(encoded_stream, file=fout)
 
-        file_out.close()
+        fout.close()
         self.logger.info("Encoding done")
         return segment_size, data_bit
 
-    def single_origami_decode(self, single_origami, ior_file_name, correct_dictionary, common_parity_index,
-                          minimum_temporary_weight, maximum_number_of_error, false_positive,
-                          induced_errors, errors_positions, original_origami, orig_idx):
+    # ---------- Worker (thread) ----------
+    def single_origami_decode(self, single_origami, ior_file_name, correct_dictionary,
+                              common_parity_index, minimum_temporary_weight,
+                              maximum_number_of_error, false_positive, induced_errors,
+                              errors_positions, original_origami, orig_idx):
         start_time = time.time()
-        index, origami_data = single_origami
+        index, origami_str = single_origami
 
-        self.logger.info("Decoding origami (%d): %s", index, origami_data)
-        if len(origami_data) != self.row * self.column:
-            self.logger.warning("Origami (%d) is incomplete. Expected length: %d, Found: %d",
-                                index, self.row * self.column, len(origami_data[0]))
-            return
+        self.logger.info("Decoding origami (%d)", index)
+        if len(origami_str) != self.row * self.column:
+            self.logger.warning(
+                "Origami (%d) is incomplete. Expected: %d, Found: %d",
+                index, self.row * self.column, len(origami_str)
+            )
+            return {
+                "io_row": dict(
+                    orig_idx=orig_idx, origami_data=origami_str, decoded_stream="",
+                    errors_positions=errors_positions, success=False,
+                    decoding_time=round(time.time() - start_time, 3),
+                ),
+                "summary": None
+            }
 
         try:
-            decoded_matrix = super().decode(origami_data, common_parity_index,
-                                            minimum_temporary_weight, maximum_number_of_error,
-                                            false_positive)
+            decoded_matrix = super().decode(
+                origami_str,
+                common_parity_index,
+                minimum_temporary_weight,
+                maximum_number_of_error,
+                false_positive
+            )
         except Exception as e:
             self.logger.exception("Decoding failed for origami (%d): %s", index, str(e))
-            return
+            return {
+                "io_row": dict(
+                    orig_idx=orig_idx, origami_data=origami_str, decoded_stream="",
+                    errors_positions=errors_positions, success=False,
+                    decoding_time=round(time.time() - start_time, 3),
+                ),
+                "summary": None
+            }
 
         if decoded_matrix == -1:
-            if ior_file_name:
-                decoding_time = round(time.time() - start_time, 3)
-                # decoded_stream = self.matrix_to_data_stream(decoded_matrix['matrix'])
-                # success = origami_data == decoded_stream
-                log_entry = (
-                    f"{orig_idx}, {origami_data},{errors_positions},"
-                    f"{original_origami}, False, {decoding_time}\n"
-                )
-                try:
-                    with open(ior_file_name, "a") as ior_file:
-                        ior_file.write(log_entry)
-                except Exception as e:
-                    self.logger.error("Failed to write to IOR file for origami (%d): %s", index, str(e))
             self.logger.warning("Decoding unsuccessful for origami (%d)", index)
-            return
+            return {
+                "io_row": dict(
+                    orig_idx=orig_idx, origami_data=origami_str, decoded_stream="",
+                    errors_positions=errors_positions, success=False,
+                    decoding_time=round(time.time() - start_time, 3),
+                ),
+                "summary": None
+            }
 
         decoded_index = decoded_matrix['index']
         decoded_data = decoded_matrix['binary_data']
-        error_count = decoded_matrix['total_probable_error']
-        error_locations = decoded_matrix['probable_error_locations']
-        orientation = decoded_matrix.get('orientation', 'N/A')
+        error_count = int(decoded_matrix['total_probable_error'])
 
-        self.logger.info("Recovered origami index: %s | Data: %s", decoded_index, decoded_data)
-        if error_count > 0:
-            self.logger.info("Detected %d errors at positions: %s", error_count, error_locations)
-        else:
-            self.logger.info("No errors detected")
-
-        # Check correctness
-        status = " "
+        # Optional correctness vs correct_dictionary
+        status = None
         if correct_dictionary:
             try:
                 status = int(correct_dictionary[int(decoded_index)] == decoded_data)
@@ -149,123 +192,165 @@ class ProcessFile(Origami):
                 self.logger.warning("Comparison error for origami (%d): %s", index, str(e))
                 status = -1
 
-        # Write individual origami result
-        if ior_file_name:
-            decoding_time = round(time.time() - start_time, 3)
-            decoded_stream = self.matrix_to_data_stream(decoded_matrix['matrix'])
-            success = original_origami == decoded_stream
-            log_entry = (
-                f"{orig_idx}, {origami_data},{induced_errors},{decoded_stream},"
-                f"{original_origami}, {error_count}, {success}, {decoding_time}\n"
-            )
-            try:
-                with open(ior_file_name, "a") as ior_file:
-                    ior_file.write(log_entry)
-            except Exception as e:
-                self.logger.error("Failed to write to IOR file for origami (%d): %s", index, str(e))
+        decoded_stream = self.matrix_to_data_stream(decoded_matrix['matrix'])
+        io_row = dict(
+            orig_idx=orig_idx,
+            origami_data=origami_str,
+            decoded_stream=decoded_stream,
+            errors_positions=errors_positions,
+            success=(original_origami == decoded_stream),
+            decoding_time=round(time.time() - start_time, 3),
+        )
+        summary = {
+            "index": decoded_index,
+            "binary_data": decoded_data,
+            "total_probable_error": error_count,
+            "status": status,
+        }
+        return {"io_row": io_row, "summary": summary}
 
-        return [decoded_matrix, status]
+    # ---------- Decode (accumulate + optional flush) ----------
+    def decode(self, data, original_origami, orig_idx, induced_errors, errors_positions,
+               file_out, file_size, parity_number, threshold_data, threshold_parity,
+               maximum_number_of_error, individual_origami_info, false_positive,
+               correct_file=False, *, accumulate=True, write_csv=False, csv_path=None):
+        """
+        Decodes a batch of origami strings.
+        - If accumulate=True (default), buffers are NOT cleared; results append.
+          If accumulate=False, buffers are cleared before decoding.
+        - If write_csv=True, writes CSV at the end of this call (path controlled by csv_path).
+          Otherwise, call self.write_ior_csv(path) later to flush once for many calls.
 
+        Returns: (status, incorrect_count, correct_count, total_error_fixed, missing_list)
+        """
+        self.logger.info("Errors Positions: %s", errors_positions)
 
-    def decode(self, data, original_origami, orig_idx, induced_errors, errors_positions, file_out, file_size, parity_number,
-            threshold_data, threshold_parity, maximum_number_of_error,
-            individual_origami_info, false_positive, correct_file=False):
-
-        print("Errors Positions", errors_positions)
+        if not accumulate:
+            self.reset_ior_buffers()
 
         correct_origami = 0
         incorrect_origami = 0
         total_error_fixed = 0
 
-        ior_file_name = f"{file_out}_ior.csv" if individual_origami_info else None
-        if ior_file_name:
-            try:
-                with open(ior_file_name, "a") as ior_file:
-                    ior_file.write(
-                        "node, origami data, Induced Errors, decoded stream, original_origami, error_count, success, decoding time\n")
-            except Exception as e:
-                self.logger.error("IOR file creation failed: %s", e)
-                return
-
-        # Calculate matrix and parity details
-        index_bits, data_bit, segment_size = self._find_optimum_index_bits(file_size * 8, parity_number)
+        # Layout details
+        _, data_bit, segment_size = self._find_optimum_index_bits(file_size * 8, parity_number)
         self.matrix_details, self.parity_bit_relation, self.checksum_bit_relation = self._matrix_details(data_bit, parity_number)
         self.data_bit_to_parity_bit = self.get_data_bit_to_parity_bit(self.parity_bit_relation)
 
         # Load correct file if provided
         correct_dictionary = {}
         if correct_file:
-            with open(correct_file) as cf:
-                for so in cf:
-                    ci, cd = self._extract_text_and_index(self.data_stream_to_matrix(so.strip()))
-                    correct_dictionary[ci] = cd
+            try:
+                with open(correct_file) as cf:
+                    for so in cf:
+                        ci, cd = self._extract_text_and_index(self.data_stream_to_matrix(so.strip()))
+                        correct_dictionary[ci] = cd
+            except Exception as e:
+                self.logger.exception("Failed to load correct_file '%s': %s", correct_file, e)
 
-        # Prepare data and decoding function
-        origami_data = [(i, origami.strip()) for i, origami in enumerate(data)]
-        p_single_decode = partial(
-            self.single_origami_decode,
-            ior_file_name=ior_file_name,
-            correct_dictionary=correct_dictionary,
-            common_parity_index=threshold_data,
-            minimum_temporary_weight=threshold_parity,
-            maximum_number_of_error=maximum_number_of_error,
-            false_positive=false_positive,
-            induced_errors=induced_errors,
-            errors_positions=errors_positions,
-            original_origami = original_origami,
-            orig_idx = orig_idx,
-        )
+        # Prepare input list
+        origami_data_list = [(i, origami.strip()) for i, origami in enumerate(data)]
 
-        # Use multiprocessing for decoding
-        with multiprocessing.Pool(processes=multiprocessing.cpu_count()) as pool:
-            return_values = pool.map(p_single_decode, origami_data)
-
-        # Process results
+        # Threaded decode to avoid multiprocessing pickling issues
+        max_workers = min(32, (os.cpu_count() or 1))
         decoded_dictionary_wno = {}
-        for result in return_values:
-            if result and result[0]:
-                index = result[0]['index']
-                binary_data = result[0]['binary_data']
-                decoded_dictionary_wno.setdefault(index, []).append(binary_data)
-                total_error_fixed += int(result[0]['total_probable_error'])
 
-                if correct_file:
-                    if result[1]:
-                        correct_origami += 1
-                    else:
-                        incorrect_origami += 1
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            futures = [
+                executor.submit(
+                    self.single_origami_decode,
+                    single_origami=pair,
+                    ior_file_name=None,
+                    correct_dictionary=correct_dictionary,
+                    common_parity_index=threshold_data,
+                    minimum_temporary_weight=threshold_parity,
+                    maximum_number_of_error=maximum_number_of_error,
+                    false_positive=false_positive,
+                    induced_errors=induced_errors,
+                    errors_positions=errors_positions,
+                    original_origami=original_origami,
+                    orig_idx=orig_idx,
+                )
+                for pair in origami_data_list
+            ]
 
-        # Majority vote to recover original data
+            for fut in as_completed(futures):
+                out = fut.result()
+                io_row = out["io_row"]
+                summary = out["summary"]
+
+                # Buffer row in memory
+                self._append_data_4_io(
+                    io_row["orig_idx"],
+                    io_row["origami_data"],
+                    io_row["decoded_stream"],
+                    io_row["errors_positions"],
+                    io_row["success"],
+                    io_row["decoding_time"],
+                )
+
+                # Aggregate for majority voting + stats
+                if summary:
+                    idx = summary["index"]
+                    bin_data = summary["binary_data"]
+                    decoded_dictionary_wno.setdefault(idx, []).append(bin_data)
+                    total_error_fixed += summary["total_probable_error"]
+
+                    if correct_file:
+                        if summary["status"] == 1:
+                            correct_origami += 1
+                        elif summary["status"] == 0:
+                            incorrect_origami += 1
+
+        # Majority vote to reconstruct
         final_data = [None] * segment_size
         for idx, binaries in decoded_dictionary_wno.items():
-            final_data[idx] = Counter(binaries).most_common(1)[0][0]
+            try:
+                int_idx = int(idx)
+            except Exception:
+                continue
+            if 0 <= int_idx < segment_size and binaries:
+                final_data[int_idx] = Counter(binaries).most_common(1)[0][0]
 
-        # Check for missing parts
         missing_origami = [i for i, val in enumerate(final_data) if val is None]
         if missing_origami:
+            # Optional per-call flush if asked
+            if write_csv or individual_origami_info:
+                path = csv_path or f"{file_out}_ior.csv"
+                self.write_ior_csv(path)
             return -1, incorrect_origami, correct_origami, total_error_fixed, missing_origami
 
-        # Reconstruct file
+        # Convert recovered bits to exactly file_size bytes
         recovered_binary = "".join(final_data)
-        # remove padding
-        recovered_binary = recovered_binary[:8 * (len(recovered_binary) // 8)]  
+        out_bytes = bytearray()
+        for i in range(0, len(recovered_binary), 8):
+            chunk = recovered_binary[i:i + 8]
+            if len(chunk) < 8:
+                break
+            out_bytes.append(int(chunk, 2))
 
-        with open(file_out, "wb") as out_file:
-            for i in range(0, len(recovered_binary), 8):
-                byte = int(recovered_binary[i:i+8], 2)
-                # skip trailing padding
-                if byte == 0 and i + 8 == len(recovered_binary): 
-                    continue
-                out_file.write(bytes([byte]))
+        if len(out_bytes) < file_size:
+            out_bytes.extend(b"\x00" * (file_size - len(out_bytes)))
+        elif len(out_bytes) > file_size:
+            out_bytes = out_bytes[:file_size]
 
-        self.logger.info("Number of missing origami: %s", missing_origami)
+        # Write recovered file
+        try:
+            with open(file_out, "wb") as out_file:
+                out_file.write(bytes(out_bytes))
+        except Exception as e:
+            self.logger.exception("Failed writing recovered file '%s': %s", file_out, e)
+            # Optional per-call flush if asked even on error
+            if write_csv or individual_origami_info:
+                path = csv_path or f"{file_out}_ior.csv"
+                self.write_ior_csv(path)
+            return -1, incorrect_origami, correct_origami, total_error_fixed, []
+
+        # Optional per-call CSV flush
+        if write_csv or individual_origami_info:
+            path = csv_path or f"{file_out}_ior.csv"
+            self.write_ior_csv(path)
+
         self.logger.info("Total error fixed: %s", total_error_fixed)
-        self.logger.info("File recovery was successful")
-
-        return 1, incorrect_origami, correct_origami, total_error_fixed, missing_origami
-
-
-
-# This is for debugging purpose
-if __name__ == '__main__':
-    pass
+        self.logger.info("File recovery successful")
+        return 1, incorrect_origami, correct_origami, total_error_fixed, []
