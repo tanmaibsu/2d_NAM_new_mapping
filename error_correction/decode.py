@@ -261,6 +261,43 @@ def main():
                             # Convert back to string
                             origami = ''.join(origami_list)
             orig_idx = orig_idx + 1
+        
+        def decode_encoded_wetlab_data(args):
+            # === Load the CSV ===
+            file_path = "encoded_data.csv"   # adjust path if needed
+            df = pd.read_csv(file_path)
+
+            # === Iterate over nodes (ID 0–3) ===
+            for node_id in sorted(df["ID"].dropna()):
+                print(f"\n--- Processing Node {int(node_id)} ---")
+                
+                # Subset rows for this node
+                node_rows = df[df["ID"] == node_id]
+                
+                for idx, row in node_rows.iterrows():
+                    # Extract the binary string (strip leading 'b' if necessary)
+                    binary_string = row["Binary String"]
+                    if binary_string.startswith("b"):
+                        origami_data = binary_string[1:]  # remove the leading 'b'
+                    else:
+                        origami_data = binary_string
+
+                    # === Call your decoder ===
+                    # NOTE: `errors` and `args` must be defined in your pipeline/environment
+                    decode(
+                        [origami_data],
+                        errors,
+                        [],
+                        args.file_out,
+                        args.file_size,
+                        int(args.parity_number),
+                        threshold_data=args.threshold_data,
+                        threshold_parity=args.threshold_parity,
+                        maximum_number_of_error=args.error,
+                        false_positive=args.false_positive,
+                        individual_origami_info=args.individual_origami_info,
+                        correct_file=args.correct_file
+                    )
 
 
 
@@ -316,8 +353,10 @@ def main():
     #     decode_single_file()
     
     # do_exhaustive_test(Path(args.bulk_folder), "single_bit")
-    do_exhaustive_test(Path(args.bulk_folder), "double_bit")
+    # do_exhaustive_test(Path(args.bulk_folder), "double_bit")
     # do_exhaustive_test(Path(args.bulk_folder), "triple_bit")
+    #decode_encoded_wetlab_data(args)
+    
     
 
 
