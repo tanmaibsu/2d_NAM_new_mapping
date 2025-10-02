@@ -211,6 +211,7 @@ def main():
                         # Convert back to string
                         origami = ''.join(origami_list)
                         idx = [i, j]
+                        print("errors-->", idx)
                         dnam_decode.decode([origami], origami_data[0], orig_idx, idx, [idx], args.file_out, args.file_size, int(args.parity_number),
                                         threshold_data=args.threshold_data,
                                         threshold_parity=args.threshold_parity,
