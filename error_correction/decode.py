@@ -7,7 +7,7 @@ import random
 import cProfile
 import pstats
 import math
-
+import csv
 
 def read_args():
     """
@@ -262,43 +262,104 @@ def main():
                             origami = ''.join(origami_list)
             orig_idx = orig_idx + 1
         
-        def decode_encoded_wetlab_data(args):
-            # === Load the CSV ===
-            file_path = "encoded_data.csv"   # adjust path if needed
-            df = pd.read_csv(file_path)
+    def import_original_origami_list():
+        return [
+            "01000100011100011101110000100111101010000111000010011001000011010000100001101000",
+            "01011100111111110001000100000000111101000010101110111100010011000011000000011001",
+            "11110111011111101001001011100011000001100000100001000010001110000011000011100110",
+            "00000100101000010101000010000010010100000100100000000000000010000111100000000011"
+        ]
+    
+    # def decode_encoded_wetlab_data(args):
+    #     # === Load the CSV ===
+    #     file_path = "../encoded_data_wetlab.csv"   # adjust path if needed
+    #     df = pd.read_csv(file_path)
+        
+    #     original_origami_list = import_original_origami_list()
+    #     # === Iterate over nodes (ID 0–3) ===
+    #     for node_id in sorted(df["ID"].dropna()):
+    #         print(f"\n--- Processing Node {int(node_id)} ---")
+            
+    #         if node_id in [0, 1, 4]:
+    #             continue
+    #         # Subset rows for this node
+    #         node_rows = df[df["ID"] == node_id]
+            
+    #         for idx, row in node_rows.iterrows():
+    #             # Extract the binary string (strip leading 'b' if necessary)
+    #             binary_string = row["Binary String"]
+    #             if binary_string.startswith("b"):
+    #                 origami_data = binary_string[1:]  # remove the leading 'b'
+    #             else:
+    #                 origami_data = binary_string
 
-            # === Iterate over nodes (ID 0–3) ===
-            for node_id in sorted(df["ID"].dropna()):
-                print(f"\n--- Processing Node {int(node_id)} ---")
-                
-                # Subset rows for this node
-                node_rows = df[df["ID"] == node_id]
-                
-                for idx, row in node_rows.iterrows():
-                    # Extract the binary string (strip leading 'b' if necessary)
-                    binary_string = row["Binary String"]
-                    if binary_string.startswith("b"):
-                        origami_data = binary_string[1:]  # remove the leading 'b'
-                    else:
-                        origami_data = binary_string
+    #             # === Call your decoder ===
+    #             # NOTE: `errors` and `args` must be defined in your pipeline/environment
+    #             dnam_decode.decode(
+    #                 [origami_data],
+    #                 original_origami_list[2],
+    #                 node_id,
+    #                 [],
+    #                 [],
+    #                 args.file_out,
+    #                 args.file_size,
+    #                 int(args.parity_number),
+    #                 threshold_data=args.threshold_data,
+    #                 threshold_parity=args.threshold_parity,
+    #                 maximum_number_of_error=args.error,
+    #                 false_positive=args.false_positive,
+    #                 individual_origami_info=args.individual_origami_info,
+    #                 correct_file=args.correct_file
+    #             )
+    
+    
 
-                    # === Call your decoder ===
-                    # NOTE: `errors` and `args` must be defined in your pipeline/environment
-                    decode(
-                        [origami_data],
-                        errors,
-                        [],
-                        args.file_out,
-                        args.file_size,
-                        int(args.parity_number),
-                        threshold_data=args.threshold_data,
-                        threshold_parity=args.threshold_parity,
-                        maximum_number_of_error=args.error,
-                        false_positive=args.false_positive,
-                        individual_origami_info=args.individual_origami_info,
-                        correct_file=args.correct_file
-                    )
+    def decode_encoded_wetlab_data(args):
+        # === Load the CSV with Python stock csv.reader ===
+        file_path = "encoded_data_wetlab.csv"   # adjust path if needed
+        
+        # Import your original origami reference
+        original_origami_list = import_original_origami_list()
 
+        with open(file_path, "r", newline="", encoding="utf-8") as f:
+            reader = csv.DictReader(f)  # reads rows into dicts keyed by column names
+            rows = list(reader)
+
+        # === Iterate over nodes (ID 0–3) ===
+        for node_id in range(4):  # only 0,1,2,3
+            if node_id in [0, 1, 3]:  # preserve your skip condition
+                continue
+
+            print(f"\n--- Processing Node {node_id} ---")
+
+            # Subset rows for this node
+            node_rows = [row for row in rows if row.get("ID") and int(float(row["ID"])) == node_id]
+
+            for row in node_rows:
+                # Extract the binary string (strip leading 'b' if necessary)
+                binary_string = row["Binary String"]
+                if binary_string.startswith("b"):
+                    origami_data = binary_string[1:]
+                else:
+                    origami_data = binary_string
+
+                # === Call your decoder ===
+                dnam_decode.decode(
+                    [origami_data],
+                    original_origami_list[2],
+                    node_id,
+                    [],
+                    [],
+                    args.file_out,
+                    args.file_size,
+                    int(args.parity_number),
+                    threshold_data=args.threshold_data,
+                    threshold_parity=args.threshold_parity,
+                    maximum_number_of_error=args.error,
+                    false_positive=args.false_positive,
+                    individual_origami_info=args.individual_origami_info,
+                    correct_file=args.correct_file
+                )
 
 
     def decode_in_bulk(encoded_origamis_path):
@@ -346,16 +407,16 @@ def main():
                                 individual_origami_info=args.individual_origami_info,
                                 correct_file=args.correct_file)
 
-    # if args.bulk_folder != "":
-    #     encoded_origamis_path = Path(args.bulk_folder)
-    #     decode_in_bulk(encoded_origamis_path)
-    # else:
-    #     decode_single_file()
+    if args.bulk_folder != "":
+        encoded_origamis_path = Path(args.bulk_folder)
+        decode_in_bulk(encoded_origamis_path)
+    else:
+        decode_single_file()
     
     # do_exhaustive_test(Path(args.bulk_folder), "single_bit")
     # do_exhaustive_test(Path(args.bulk_folder), "double_bit")
     # do_exhaustive_test(Path(args.bulk_folder), "triple_bit")
-    #decode_encoded_wetlab_data(args)
+    # decode_encoded_wetlab_data(args)
     
     
 

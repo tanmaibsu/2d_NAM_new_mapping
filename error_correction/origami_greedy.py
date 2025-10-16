@@ -85,7 +85,7 @@ class Origami:
         print("<----------data_bit_per_origami----------->")
         print(data_bit_per_origami)
         data_bits = data_index[:data_bit_per_origami]
-        index_bits = data_index[data_bit_per_origami: ]
+        index_bits = data_index[data_bit_per_origami:]
         # data_bits = data_index - index_bits
 
         matrix_details = dict(
@@ -107,6 +107,7 @@ class Origami:
         :return: Matrix with data, orientation, and index bits inserted
         """
         binary_list = list(binary_stream)
+        print("binary list", binary_list)
         data_matrix = np.full((self.row, self.column), -1)  # Initialize with -1
 
         # Insert data bits
@@ -368,11 +369,16 @@ class Origami:
         _, matrix_weight, probable_errors = self._get_matrix_weight(
             matrix, [], threshold_parity, threshold_data, false_positive
         )
+        
+        print("<--------Initial matrix check without flipping any bit--------->")
+        print("matrix_weight--->", matrix_weight)
+        print("probable_errors--->", probable_errors)
 
         self.logger.debug(f"Initial matrix weight: {matrix_weight}, Probable errors: {probable_errors}")
 
         if matrix_weight == 0:
             self.logger.info("No parity mismatch found initially.")
+            print("No parity mismatch found initially.")
             recovered = self.return_matrix(matrix, [])
             if recovered != -1:
                 return recovered
@@ -539,19 +545,31 @@ class Origami:
         # Flip the bits at the specified positions
         for (i, j) in changing_location:
             if matrix_copy[i][j] == 0:
+                print("I am here at changing location if", changing_location)
                 matrix_copy[i][j] = 1
             else:
                 matrix_copy[i][j] = 0
+                print("I am here at changing location else", changing_location)
                 if (i, j) in self.parity_bit_relation:
                     false_positive_parity += 1
                 else:
                     false_positive_data += 1
 
         # Identify parity bits that are incorrect
+        # list parity correct and incorrect positions
         parity_correct, parity_incorrect = self._find_possible_error_location(matrix_copy)
+        print("<<<<<<------------------------->>>>>>")
+        print("parity_correct--->", parity_correct)
+        print("parity_incorrect--->", parity_incorrect)
+        # list of probable error data cells derived from parity incorrect
         probable_error_indexes = [pos for p in parity_incorrect for pos in self.parity_bit_relation[p]]
-
+        
+        print("probable_error_indexes--->", probable_error_indexes)
+        print("<<<<<<------------------------->>>>>>")
+        
         # Analyze checksum mismatches
+        # Store the checksum errors from the checksum relations
+        # Also store the checksum cells that may have errors
         checksum_errors = []
         checksum_related_errors = []
         for checksum_index, related_cells in self.checksum_bit_relation.items():
@@ -563,15 +581,27 @@ class Origami:
                 probable_error_indexes.append(checksum_index)
                 checksum_related_errors.extend(related_cells)
 
+        print("<<<<<<------------------------->>>>>>")
+        print("checksum_errors--->", checksum_errors)
+        print("probable_error_indexes--->", probable_error_indexes)
+        print("checksum_related_errors--->", checksum_related_errors)
+        print("<<<<<<------------------------->>>>>>")
+
         # Weigh data bit errors by frequency and checksum involvement
+        # weight 2 if a probable error indexes in both checksum errors and checksum related cells
         probable_data_error = {}
         for (pos, count) in Counter(probable_error_indexes).most_common():
             weight = count + (
                 2 if pos in checksum_related_errors and pos in checksum_errors else
                 1 if pos in checksum_related_errors or pos in checksum_errors else 0
             )
+            # group by weight
+            # { 4 : [(1, 1), (1, 2)]}
             probable_data_error.setdefault(weight, []).append(pos)
+        
+        print("probable_data_error", probable_data_error)
 
+        print("data_bit_to_parity_bit--->", self.data_bit_to_parity_bit)
         # Collect parity bit errors linked from data positions
         all_probable_parity = []
         for pos in probable_data_error.values():

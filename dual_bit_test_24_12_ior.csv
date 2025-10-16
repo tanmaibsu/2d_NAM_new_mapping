@@ -1,0 +1,77 @@
+origami, Induced Errors, Errors Positions, decoded data, decoding time
+0,00000000011000001111110000101110101010100011000000011001000011011110000001101000,[1, 5],[[1, 5]], ,2,[(0  5)  (0  1)],0,0,01000100011000001111110000101110101010100011000000011001000011011110000001101000,0100010001100001011101000110000100100000011010,0.461
+origami, Induced Errors, Errors Positions, decoded data, decoding time
+0,00000000001000001111110000101110101010100011000000011001000011011110000001101000,[1, 9],[[1, 9]], ,3,[(0  5)  (0  9)  (0  1)],0,0,01000100011000001111110000101110101010100011000000011001000011011110000001101000,0100010001100001011101000110000100100000011010,3.868
+origami, Induced Errors, Errors Positions, decoded data, decoding time
+0,00000000000000001111110000101110101010100011000000011001000011011110000001101000,[1, 10],[[1, 10]], ,4,[(0  5)  (1  0)  (0  9)  (0  1)],0,0,01000100011000001111110000101110101010100011000000011001000011011110000001101000,0100010001100001011101000110000100100000011010,4.979
+origami, Induced Errors, Errors Positions, decoded data, decoding time
+0,00000000000000000111110000101110101010100011000000011001000011011110000001101000,[1, 16],[[1, 16]], ,5,[(0  1)  (1  0)  (0  9)  (0  5)  (1  6)],0,0,01000100011000001111110000101110101010100011000000011001000011011110000001101000,0100010001100001011101000110000100100000011010,4.099
+origami, Induced Errors, Errors Positions, decoded data, decoding time
+0,00000000000000000011110000101110101010100011000000011001000011011110000001101000,[1, 17],[[1, 17]], ,6,[(0  5)  (0  1)  (0  9)  (1  0)  (1  6)  (1  7)],0,0,01000100011000001111110000101110101010100011000000011001000011011110000001101000,0100010001100001011101000110000100100000011010,3.266
+origami, Induced Errors, Errors Positions, decoded data, decoding time
+0,00000000000000000001110000101110101010100011000000011001000011011110000001101000,[1, 18],[[1, 18]], ,6,[(1  4)  (1  0)  (0  1)  (7  2)  (4  4)  (3  1)],0,0,01000000001000100001110000101111101010100011100000011001000011011110000011101000,0100000000100001011101000110000100100000111010,1.631
+origami, Induced Errors, Errors Positions, decoded data, decoding time
+0,00000000000000000000110000101110101010100011000000011001000011011110000001101000,[1, 19],[[1, 19]], ,8,[(0  5)  (0  1)  (1  9)  (1  0)  (0  9)  (1  6)  (1  8)  (1  7)],0,0,01000100011000001111110000101110101010100011000000011001000011011110000001101000,0100010001100001011101000110000100100000011010,1.36
+origami, Induced Errors, Errors Positions, decoded data, decoding time
+origami, Induced Errors, Errors Positions, decoded data, decoding time
+origami, Induced Errors, Errors Positions, decoded data, decoding time
+origami, Induced Errors, Errors Positions, decoded data, decoding time
+origami, Induced Errors, Errors Positions, decoded data, decoding time
+origami, Induced Errors, Errors Positions, decoded data, decoding time
+origami, Induced Errors, Errors Positions, decoded data, decoding time
+origami, Induced Errors, Errors Positions, decoded data, decoding time
+origami, Induced Errors, Errors Positions, decoded data, decoding time
+origami, Induced Errors, Errors Positions, decoded data, decoding time
+origami, Induced Errors, Errors Positions, decoded data, decoding time
+origami, Induced Errors, Errors Positions, decoded data, decoding time
+origami, Induced Errors, Errors Positions, decoded data, decoding time
+0,00000000000000000000000000000000000000000000000000001001000011011110000001101000,[1, 51],[[1, 51]], ,8,[(1  0)  (2  0)  (4  0)  (6  0)  (1  2)  (1  7)  (6  4)  (3  1)],3,0,00010110001011111111100010010001000000001000000000000000000010001000000000000000,0001011000100100100000001000000000000000000000,9.412
+origami, Induced Errors, Errors Positions, decoded data, decoding time
+origami, Induced Errors, Errors Positions, decoded data, decoding time
+origami, Induced Errors, Errors Positions, decoded data, decoding time
+origami, Induced Errors, Errors Positions, decoded data, decoding time
+origami, Induced Errors, Errors Positions, decoded data, decoding time
+origami, Induced Errors, Errors Positions, decoded data, decoding time
+origami, Induced Errors, Errors Positions, decoded data, decoding time
+origami, Induced Errors, Errors Positions, decoded data, decoding time
+origami, Induced Errors, Errors Positions, decoded data, decoding time
+origami, Induced Errors, Errors Positions, decoded data, decoding time
+origami, Induced Errors, Errors Positions, decoded data, decoding time
+origami, Induced Errors, Errors Positions, decoded data, decoding time
+0,00001100111000000101000100001000111101000010101100111100010010011101100000011001,[1, 3],[[1, 3]], ,2,[(0  1)  (0  3)],0,1,01011100111000000101000100001000111101000010101100111100010010011101100000011001,0101110011001000000110100101101110001000000110,0.009
+origami, Induced Errors, Errors Positions, decoded data, decoding time
+0,00000100111000000101000100001000111101000010101100111100010010011101100000011001,[1, 4],[[1, 4]], ,3,[(0  1)  (0  4)  (0  3)],0,1,01011100111000000101000100001000111101000010101100111100010010011101100000011001,0101110011001000000110100101101110001000000110,0.995
+origami, Induced Errors, Errors Positions, decoded data, decoding time
+0,00000000111000000101000100001000111101000010101100111100010010011101100000011001,[1, 5],[[1, 5]], ,8,[(1  3)  (0  5)  (0  0)  (1  2)  (3  8)  (1  4)  (6  6)  (3  1)],0,1,10000100111011100101000100001001111101100010101100111100010010011111100000011001,1000010011001000000110100101101110001000000110,2.231
+origami, Induced Errors, Errors Positions, decoded data, decoding time
+0,00000000011000000101000100001000111101000010101100111100010010011101100000011001,[1, 8],[[1, 8]], ,7,[(4  9)  (5  7)  (0  1)  (3  1)  (1  8)  (1  4)  (4  8)],0,1,01000000011000100111000100001001111101000010101111111100000010011101100000011001,0100000001001000000110100101111110000000000110,0.711
+origami, Induced Errors, Errors Positions, decoded data, decoding time
+0,00000000001000000101000100001000111101000010101100111100010010011101100000011001,[1, 9],[[1, 9]], ,8,[(1  6)  (1  2)  (3  1)  (0  4)  (2  5)  (1  3)  (1  4)  (5  8)],0,1,00001000001011101101000101001001111101000010101100111100011010011101100000011001,0000100000001010000110100101101110001000000110,0.447
+origami, Induced Errors, Errors Positions, decoded data, decoding time
+origami, Induced Errors, Errors Positions, decoded data, decoding time
+origami, Induced Errors, Errors Positions, decoded data, decoding time
+origami, Induced Errors, Errors Positions, decoded data, decoding time
+origami, Induced Errors, Errors Positions, decoded data, decoding time
+origami, Induced Errors, Errors Positions, decoded data, decoding time
+origami, Induced Errors, Errors Positions, decoded data, decoding time
+0,00000000000000000000000000000000001101000010101100111100010010011101100000011001,[1, 33],[[1, 33]], ,8,[(2  3)  (1  0)  (3  4)  (1  4)  (1  9)  (3  6)  (1  1)  (1  2)],0,1,00000000001110100001000100000000000111000010101100111100010010011101100000011001,0000000000001000000001100101101110001000000110,1.737
+origami, Induced Errors, Errors Positions, decoded data, decoding time
+0,00000000000000000000000000000000000101000010101100111100010010011101100000011001,[1, 34],[[1, 34]], ,7,[(2  3)  (1  0)  (1  4)  (1  9)  (3  6)  (1  1)  (1  2)],0,1,00000000001110100001000100000000000111000010101100111100010010011101100000011001,0000000000001000000001100101101110001000000110,0.811
+origami, Induced Errors, Errors Positions, decoded data, decoding time
+0,00000000000000000000000000000000000001000010101100111100010010011101100000011001,[1, 35],[[1, 35]], ,6,[(2  3)  (1  0)  (1  9)  (1  4)  (1  3)  (1  2)],0,1,00000000001011100001000100000000000001000010101100111100010010011101100000011001,0000000000001000000000100101101110001000000110,9.766
+origami, Induced Errors, Errors Positions, decoded data, decoding time
+0,00000000000000000000000000000000000000000010101100111100010010011101100000011001,[1, 37],[[1, 37]], ,7,[(1  9)  (3  7)  (2  3)  (1  0)  (1  4)  (1  3)  (1  2)],0,1,00000000001011100001000100000000000001000010101100111100010010011101100000011001,0000000000001000000000100101101110001000000110,16.673
+origami, Induced Errors, Errors Positions, decoded data, decoding time
+0,00000000000000000000000000000000000000000000101100111100010010011101100000011001,[1, 42],[[1, 42]], ,8,[(2  3)  (1  0)  (5  3)  (1  9)  (2  6)  (1  2)  (1  4)  (6  6)],0,1,00000000001010100001000100100000000000000000101100111000010010011111100000011001,0000000000001001000000000001101100001000000110,16.516
+origami, Induced Errors, Errors Positions, decoded data, decoding time
+origami, Induced Errors, Errors Positions, decoded data, decoding time
+origami, Induced Errors, Errors Positions, decoded data, decoding time
+origami, Induced Errors, Errors Positions, decoded data, decoding time
+origami, Induced Errors, Errors Positions, decoded data, decoding time
+origami, Induced Errors, Errors Positions, decoded data, decoding time
+origami, Induced Errors, Errors Positions, decoded data, decoding time
+origami, Induced Errors, Errors Positions, decoded data, decoding time
+origami, Induced Errors, Errors Positions, decoded data, decoding time
+origami, Induced Errors, Errors Positions, decoded data, decoding time
+origami, Induced Errors, Errors Positions, decoded data, decoding time
+origami, Induced Errors, Errors Positions, decoded data, decoding time
