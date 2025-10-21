@@ -264,10 +264,12 @@ def main():
         
     def import_original_origami_list():
         return [
-            "01000100011100011101110000100111101010000111000010011001000011010000100001101000",
-            "01011100111111110001000100000000111101000010101110111100010011000011000000011001",
-            "11110111011111101001001011100011000001100000100001000010001110000011000011100110",
-            "00000100101000010101000010000010010100000100100000000000000010000111100000000011"
+            "01000100011010110111101010111001101001010101011011011010010110110101100001100000",
+            "00100100001110110111000101110010110101110000111110111110111110011001101001100001",
+            "10000001101001011001100011010000110000111110011001101010110011011101100010000010",
+            "00110111101100111101110000000111101110001000011011110101101010011011000100010011",
+            "00000100011111011101010100010001010101101011101100011010101110010110000000010100",
+            "01000010001110110011000000010101111100100110100100000011001011110011000000000101"
         ]
     
     # def decode_encoded_wetlab_data(args):
@@ -316,7 +318,7 @@ def main():
 
     def decode_encoded_wetlab_data(args):
         # === Load the CSV with Python stock csv.reader ===
-        file_path = "encoded_data_wetlab.csv"   # adjust path if needed
+        file_path = "encoded_6_nodes/test_6_nodes3.csv"   # adjust path if needed
         
         # Import your original origami reference
         original_origami_list = import_original_origami_list()
@@ -325,11 +327,8 @@ def main():
             reader = csv.DictReader(f)  # reads rows into dicts keyed by column names
             rows = list(reader)
 
-        # === Iterate over nodes (ID 0–3) ===
-        for node_id in range(4):  # only 0,1,2,3
-            if node_id in [0, 1, 3]:  # preserve your skip condition
-                continue
-
+        # === Iterate over nodes (ID 0–5) ===
+        for node_id in range(6):  # only 0,1,2,3,4,5
             print(f"\n--- Processing Node {node_id} ---")
 
             # Subset rows for this node
@@ -346,7 +345,7 @@ def main():
                 # === Call your decoder ===
                 dnam_decode.decode(
                     [origami_data],
-                    original_origami_list[2],
+                    original_origami_list[node_id],
                     node_id,
                     [],
                     [],
@@ -380,7 +379,7 @@ def main():
             err_pos = []
             n = 1
             # print(os.path.relpath(origami, start=os.getcwd()))
-            for errors in error_poss[i]:
+            for errors in error_pos[i]:
                 origami_data, errors_index = flip_n_bits(data[0], n)
                 # err_pos = errors_index
                 dnam_decode.decode([origami_data], errors, [], args.file_out, args.file_size, int(args.parity_number),
@@ -407,16 +406,16 @@ def main():
                                 individual_origami_info=args.individual_origami_info,
                                 correct_file=args.correct_file)
 
-    if args.bulk_folder != "":
-        encoded_origamis_path = Path(args.bulk_folder)
-        decode_in_bulk(encoded_origamis_path)
-    else:
-        decode_single_file()
+    # if args.bulk_folder != "":
+    #     encoded_origamis_path = Path(args.bulk_folder)
+    #     decode_in_bulk(encoded_origamis_path)
+    # else:
+    #     decode_single_file()
     
     # do_exhaustive_test(Path(args.bulk_folder), "single_bit")
     # do_exhaustive_test(Path(args.bulk_folder), "double_bit")
     # do_exhaustive_test(Path(args.bulk_folder), "triple_bit")
-    # decode_encoded_wetlab_data(args)
+    decode_encoded_wetlab_data(args)
     
     
 

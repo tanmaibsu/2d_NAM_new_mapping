@@ -234,6 +234,8 @@ class ProcessFile(Origami):
 
         # Layout details
         _, data_bit, segment_size = self._find_optimum_index_bits(file_size * 8, parity_number)
+        print("<---data bits----->")
+        print(data_bit)
         self.matrix_details, self.parity_bit_relation, self.checksum_bit_relation = self._matrix_details(data_bit, parity_number)
         self.data_bit_to_parity_bit = self.get_data_bit_to_parity_bit(self.parity_bit_relation)
 

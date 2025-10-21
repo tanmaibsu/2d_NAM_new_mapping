@@ -370,9 +370,9 @@ class Origami:
             matrix, [], threshold_parity, threshold_data, false_positive
         )
         
-        print("<--------Initial matrix check without flipping any bit--------->")
-        print("matrix_weight--->", matrix_weight)
-        print("probable_errors--->", probable_errors)
+        # print("<--------Initial matrix check without flipping any bit--------->")
+        # print("matrix_weight--->", matrix_weight)
+        # print("probable_errors--->", probable_errors)
 
         self.logger.debug(f"Initial matrix weight: {matrix_weight}, Probable errors: {probable_errors}")
 
@@ -545,11 +545,11 @@ class Origami:
         # Flip the bits at the specified positions
         for (i, j) in changing_location:
             if matrix_copy[i][j] == 0:
-                print("I am here at changing location if", changing_location)
+                # print("I am here at changing location if", changing_location)
                 matrix_copy[i][j] = 1
             else:
                 matrix_copy[i][j] = 0
-                print("I am here at changing location else", changing_location)
+                # print("I am here at changing location else", changing_location)
                 if (i, j) in self.parity_bit_relation:
                     false_positive_parity += 1
                 else:
@@ -558,14 +558,14 @@ class Origami:
         # Identify parity bits that are incorrect
         # list parity correct and incorrect positions
         parity_correct, parity_incorrect = self._find_possible_error_location(matrix_copy)
-        print("<<<<<<------------------------->>>>>>")
-        print("parity_correct--->", parity_correct)
-        print("parity_incorrect--->", parity_incorrect)
+        # print("<<<<<<------------------------->>>>>>")
+        # print("parity_correct--->", parity_correct)
+        # print("parity_incorrect--->", parity_incorrect)
         # list of probable error data cells derived from parity incorrect
         probable_error_indexes = [pos for p in parity_incorrect for pos in self.parity_bit_relation[p]]
         
-        print("probable_error_indexes--->", probable_error_indexes)
-        print("<<<<<<------------------------->>>>>>")
+        # print("probable_error_indexes--->", probable_error_indexes)
+        # print("<<<<<<------------------------->>>>>>")
         
         # Analyze checksum mismatches
         # Store the checksum errors from the checksum relations
@@ -581,11 +581,11 @@ class Origami:
                 probable_error_indexes.append(checksum_index)
                 checksum_related_errors.extend(related_cells)
 
-        print("<<<<<<------------------------->>>>>>")
-        print("checksum_errors--->", checksum_errors)
-        print("probable_error_indexes--->", probable_error_indexes)
-        print("checksum_related_errors--->", checksum_related_errors)
-        print("<<<<<<------------------------->>>>>>")
+        # print("<<<<<<------------------------->>>>>>")
+        # print("checksum_errors--->", checksum_errors)
+        # print("probable_error_indexes--->", probable_error_indexes)
+        # print("checksum_related_errors--->", checksum_related_errors)
+        # print("<<<<<<------------------------->>>>>>")
 
         # Weigh data bit errors by frequency and checksum involvement
         # weight 2 if a probable error indexes in both checksum errors and checksum related cells
@@ -599,9 +599,9 @@ class Origami:
             # { 4 : [(1, 1), (1, 2)]}
             probable_data_error.setdefault(weight, []).append(pos)
         
-        print("probable_data_error", probable_data_error)
+        # print("probable_data_error", probable_data_error)
 
-        print("data_bit_to_parity_bit--->", self.data_bit_to_parity_bit)
+        # print("data_bit_to_parity_bit--->", self.data_bit_to_parity_bit)
         # Collect parity bit errors linked from data positions
         all_probable_parity = []
         for pos in probable_data_error.values():
@@ -664,7 +664,7 @@ class Origami:
             :param false_positive:
             :param maximum_number_of_error:
         """
-        # If length of decoded data is not 48 then show error
+        # If length of decoded data is not 80 then show error
         if len(data_stream) != self.row * self.column:
             raise ValueError("The data stream length should be", self.row * self.column)
         # Initial check which parity bit index gave error and which gave correct results
