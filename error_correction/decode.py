@@ -327,7 +327,7 @@ def main():
 
         # === Iterate over nodes (ID 0–3) ===
         for node_id in range(4):  # only 0,1,2,3
-            if node_id in [0, 1, 3]:  # preserve your skip condition
+            if node_id in [0, 1]:  # preserve your skip condition
                 continue
 
             print(f"\n--- Processing Node {node_id} ---")
@@ -346,7 +346,7 @@ def main():
                 # === Call your decoder ===
                 dnam_decode.decode(
                     [origami_data],
-                    original_origami_list[2],
+                    original_origami_list[node_id],
                     node_id,
                     [],
                     [],
@@ -407,16 +407,16 @@ def main():
                                 individual_origami_info=args.individual_origami_info,
                                 correct_file=args.correct_file)
 
-    if args.bulk_folder != "":
-        encoded_origamis_path = Path(args.bulk_folder)
-        decode_in_bulk(encoded_origamis_path)
-    else:
-        decode_single_file()
+    # if args.bulk_folder != "":
+    #     encoded_origamis_path = Path(args.bulk_folder)
+    #     decode_in_bulk(encoded_origamis_path)
+    # else:
+    #     decode_single_file()
     
     # do_exhaustive_test(Path(args.bulk_folder), "single_bit")
     # do_exhaustive_test(Path(args.bulk_folder), "double_bit")
     # do_exhaustive_test(Path(args.bulk_folder), "triple_bit")
-    # decode_encoded_wetlab_data(args)
+    decode_encoded_wetlab_data(args)
     
     
 
