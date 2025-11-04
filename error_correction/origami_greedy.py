@@ -4,8 +4,6 @@ import get_parity_n_checksum as pcm
 import copy
 import numpy as np
 import logging
-import heapq
-import itertools
 from log import get_logger
 
 
@@ -109,12 +107,12 @@ class Origami:
         self.number_of_bit_per_origami = data_bit_per_origami
         self.matrix_details, self.parity_bit_relation, self.checksum_bit_relation = \
             self._matrix_details(data_bit_per_origami, parity_number)
-        self.data_bit_to_parity_bit = Origami.get_data_bit_to_parity_bit(self.parity_bit_relation)
+        self.data_bit_to_parity_bit = self.get_data_bit_to_parity_bit(self.parity_bit_relation)
 
         encoded_matrix = self.create_initial_matrix_from_binary_stream(binary_stream, index)
-        encoded_matrix = Origami._xor_matrix(encoded_matrix, self.checksum_bit_relation)
-        encoded_matrix = Origami._xor_matrix(encoded_matrix, self.parity_bit_relation)
-        return Origami.matrix_to_data_stream(encoded_matrix)
+        encoded_matrix = self._xor_matrix(encoded_matrix, self.checksum_bit_relation)
+        encoded_matrix = self._xor_matrix(encoded_matrix, self.parity_bit_relation)
+        return self.matrix_to_data_stream(encoded_matrix)
 
     def encode(self, binary_stream, index, data_bit_per_origami):
         return self._encode(binary_stream, index, data_bit_per_origami, 40)
@@ -127,17 +125,7 @@ class Origami:
                 data_bit_to_parity_bit.setdefault(single_data_bit, []).append(single_parity_bit)
         return data_bit_to_parity_bit
 
-    # --------------------------- Matrix Utilities -----------------------------
-
-    @staticmethod
-    def print_matrix(matrix, in_file=False):
-        for row in range(len(matrix)):
-            for column in range(len(matrix.T)):
-                if not in_file:
-                    print(matrix[row][column], end="\t")
-                else:
-                    print(matrix[row][column], end="\t", file=in_file)
-            print("" if not in_file else "", file=in_file if in_file else None)
+    # --------------------------- Utilities -----------------------------
 
     @staticmethod
     def matrix_to_data_stream(matrix):
@@ -149,14 +137,14 @@ class Origami:
 
     def data_stream_to_matrix(self, data_stream):
         matrix = np.full((self.row, self.column), -1)
-        data_stream_index = 0
-        for row in range(len(matrix)):
-            for column in range(len(matrix.T)):
-                matrix[row][column] = data_stream[data_stream_index]
-                data_stream_index += 1
+        k = 0
+        for r in range(self.row):
+            for c in range(self.column):
+                matrix[r][c] = data_stream[k]
+                k += 1
         return matrix
 
-    # --------------------------- Orientation Fixing -----------------------------
+    # --------------------------- Orientation -----------------------------
 
     def _fix_orientation(self, matrix, option=0):
         if option == 0:
@@ -175,20 +163,16 @@ class Origami:
             if corrected_matrix[bit_index[0]][bit_index[1]] != self.matrix_details["orientation_data"][i]:
                 orientation_check = False
         if orientation_check:
-            print("<--------------------->")
-            print(corrected_matrix)
-            print("<--------------------->")
             return option, corrected_matrix
         else:
             return self._fix_orientation(matrix, option + 1)
 
-    # --------------------------- Error Weight Calculation -----------------------------
+    # --------------------------- Error Detection -----------------------------
 
     def _find_possible_error_location(self, matrix):
-        correct_indexes = []
-        incorrect_indexes = []
+        correct_indexes, incorrect_indexes = [], []
         for parity_bit_index in self.parity_bit_relation:
-            nearby_values = [int(matrix[a[0]][a[1]]) for a in self.parity_bit_relation[parity_bit_index]]
+            nearby_values = [int(matrix[a][b]) for a, b in self.parity_bit_relation[parity_bit_index]]
             xored_value = reduce(lambda i, j: int(i) ^ int(j), nearby_values)
             if matrix[parity_bit_index[0]][parity_bit_index[1]] == int(xored_value):
                 correct_indexes.append(parity_bit_index)
@@ -196,74 +180,43 @@ class Origami:
                 incorrect_indexes.append(parity_bit_index)
         return correct_indexes, incorrect_indexes
 
-    def _get_matrix_weight(self, matrix, changing_location, threshold_parity, threshold_data, false_positive):
-        matrix_copy = copy.deepcopy(matrix)
+    def check_checksum(self, matrix):
+        for check_sum_bit in self.checksum_bit_relation:
+            nearby_values = [int(matrix[a[0]][a[1]]) for a in self.checksum_bit_relation[check_sum_bit]]
+            xor_value = reduce(lambda i, j: int(i) ^ int(j), nearby_values)
+            if xor_value != matrix[check_sum_bit[0]][check_sum_bit[1]]:
+                return False
+        return True
 
-        false_positive_data = 0
-        false_positive_parity = 0
+    def _mirror_locations(self, error_locations, orientation_info):
+        updated_locations = []
+        for error_location in error_locations:
+            if orientation_info == 0:
+                updated_locations.append(error_location)
+            elif orientation_info == 1:
+                updated_locations.append((self.row - 1 - error_location[0], error_location[1]))
+            elif orientation_info == 2:
+                updated_locations.append((error_location[0], self.column - 1 - error_location[1]))
+            elif orientation_info == 3:
+                updated_locations.append((self.row - 1 - error_location[0], self.column - 1 - error_location[1]))
+        return updated_locations
 
-        for (i, j) in changing_location:
-            matrix_copy[i][j] = 1 if matrix_copy[i][j] == 0 else 0
-            if (i, j) in self.parity_bit_relation:
-                false_positive_parity += 1
-            else:
-                false_positive_data += 1
-
-        parity_correct, parity_incorrect = self._find_possible_error_location(matrix_copy)
-        probable_error_indexes = [pos for p in parity_incorrect for pos in self.parity_bit_relation[p]]
-
-        checksum_errors = []
-        checksum_related_errors = []
-        for checksum_index, related_cells in self.checksum_bit_relation.items():
-            xor_value = reduce(lambda x, y: x ^ y, [int(matrix_copy[i][j]) for (i, j) in related_cells])
-            expected_value = matrix_copy[checksum_index[0]][checksum_index[1]]
-            if xor_value != expected_value:
-                checksum_errors.append(checksum_index)
-                probable_error_indexes.append(checksum_index)
-                checksum_related_errors.extend(related_cells)
-
-        probable_data_error = {}
-        for (pos, count) in Counter(probable_error_indexes).most_common():
-            weight = count + (
-                2 if pos in checksum_related_errors and pos in checksum_errors else
-                1 if pos in checksum_related_errors or pos in checksum_errors else 0
-            )
-            probable_data_error.setdefault(weight, []).append(pos)
-
-        all_probable_parity = []
-        for pos in probable_data_error.values():
-            for data_pos in pos:
-                all_probable_parity.extend(self.data_bit_to_parity_bit[data_pos])
-        all_probable_parity.extend(parity_incorrect)
-        counted_parity_errors = Counter(all_probable_parity).most_common()
-
-        fp_data_limit = (false_positive + 1) // 2
-        fp_parity_limit = false_positive // 2 if false_positive else 0
-
-        matrix_weight = 0
-        probable_parity_error = []
-
-        for (pos, weight) in counted_parity_errors:
-            matrix_weight += weight
-            if weight >= threshold_parity:
-                probable_parity_error.append(pos)
-
-        probable_data_errors = []
-        for weight in sorted(probable_data_error.keys(), reverse=True):
-            if weight >= threshold_data:
-                for pos in probable_data_error[weight]:
-                    probable_data_errors.append(pos)
-            matrix_weight += weight * len(probable_data_error[weight])
-
-        probable_error_data_parity = probable_data_errors + probable_parity_error
-        normalized_weight = matrix_weight / len(parity_correct) if parity_correct else matrix_weight
-
-        return matrix_copy, normalized_weight, probable_error_data_parity
-
-    # --------------------------- Orientation & Checksum Check -----------------------------
+    # --------------------------- Full Matrix Recovery -----------------------------
 
     def return_matrix(self, correct_matrix, error_locations):
-        single_recovered_matrix = {}
+        single_recovered_matrix = {
+            'orientation_details': None,
+            'orientation': None,
+            'matrix': correct_matrix,
+            'orientation_fixed': False,
+            'total_probable_error': len(error_locations),
+            'probable_error_locations': error_locations,
+            'is_recovered': False,
+            'checksum_checked': False,
+            'index': -1,
+            'binary_data': ""
+        }
+
         orientation_info, correct_matrix = self._fix_orientation(correct_matrix)
         if not orientation_info == -1 and self.check_checksum(correct_matrix):
             error_locations = self._mirror_locations(error_locations, orientation_info)
@@ -279,20 +232,7 @@ class Origami:
                 self._extract_text_and_index(correct_matrix)
             return single_recovered_matrix
         else:
-            return -1
-
-    def _mirror_locations(self, error_locations, orientation_info):
-        updated_locations = []
-        for error_location in error_locations:
-            if orientation_info == 0:
-                updated_locations.append(error_location)
-            elif orientation_info == 1:
-                updated_locations.append((self.row - 1 - error_location[0], error_location[1]))
-            elif orientation_info == 2:
-                updated_locations.append((error_location[0], self.column - 1 - error_location[1]))
-            elif orientation_info == 3:
-                updated_locations.append((self.row - 1 - error_location[0], self.column - 1 - error_location[1]))
-        return updated_locations
+            return single_recovered_matrix  # Return even if failed, to maintain consistent structure
 
     def _extract_text_and_index(self, matrix):
         index_bin = []
@@ -304,100 +244,159 @@ class Origami:
             text_bin_data += str(matrix[bit_index[0]][bit_index[1]])
         return index_decimal, text_bin_data
 
-    def check_checksum(self, matrix):
-        for check_sum_bit in self.checksum_bit_relation:
-            nearby_values = [int(matrix[a[0]][a[1]]) for a in self.checksum_bit_relation[check_sum_bit]]
-            xor_value = reduce(lambda i, j: int(i) ^ int(j), nearby_values)
-            if xor_value != matrix[check_sum_bit[0]][check_sum_bit[1]]:
-                return False
-        return True
+    # --------------------------- Beam Search Helpers -----------------------------
 
-    # --------------------------- A* Search Decoding -----------------------------
+    def _hash_matrix(self, matrix): return tuple(int(x) for x in matrix.flatten())
 
-    def _decode_a_star(
-        self,
-        matrix,
-        threshold_parity,
-        threshold_data,
-        maximum_number_of_error,
-        false_positive,
-        *,
-        alpha: float = 1.0,
-        beam_width: int = 16
+    def _flip_in_place(self, mat, pos):
+        i, j = pos
+        mat[i][j] = 1 if int(mat[i][j]) == 0 else 0
+
+    def _violations_and_candidates(self, matrix):
+        parity_correct, parity_incorrect = self._find_possible_error_location(matrix)
+        checksum_incorrect = []
+        checksum_related_union = set()
+        for c_idx, related in self.checksum_bit_relation.items():
+            xor_val = 0
+            for (r, c) in related:
+                xor_val ^= int(matrix[r][c])
+            expected = int(matrix[c_idx[0]][c_idx[1]])
+            if xor_val != expected:
+                checksum_incorrect.append(c_idx)
+                checksum_related_union.update(related)
+        cand = set()
+        for p in parity_incorrect:
+            cand.update(self.parity_bit_relation[p])
+        cand.update(checksum_related_union)
+        touched = {}
+        violated_set = set(parity_incorrect)
+        for bit in cand:
+            refs = self.data_bit_to_parity_bit.get(bit, [])
+            touched[bit] = sum(1 for r in refs if r in violated_set)
+        checksum_bonus = {bit: 1 if bit in checksum_related_union else 0 for bit in cand}
+        scores = {bit: touched[bit] * 2 + checksum_bonus[bit] for bit in cand}
+        ranked = sorted(cand, key=lambda b: scores[b], reverse=True)
+        return len(parity_incorrect) + len(checksum_incorrect), parity_incorrect, checksum_incorrect, ranked, scores
+
+    # --------------------------- Stochastic Beam Search -----------------------------
+
+    def _decode_beam(
+    self,
+    matrix,
+    *,
+    beam_width=12,
+    max_flips=8,
+    restarts=2,
+    per_parent_expansions=4,
+    stagnation_patience=2,
+    rng_seed=0
     ):
-        tie = itertools.count()
-        open_heap = []
-        visited_best_g = {}
+        if rng_seed:
+            np.random.seed(rng_seed)
 
-        start_mat, h0, start_probables = self._get_matrix_weight(
-            matrix, [], threshold_parity, threshold_data, false_positive
-        )
-        if h0 == 0:
-            recovered = self.return_matrix(start_mat, [])
-            if recovered != -1:
-                return recovered
+        if not hasattr(self, "data_bit_to_parity_bit"):
+            self.data_bit_to_parity_bit = self.get_data_bit_to_parity_bit(self.parity_bit_relation)
 
-        start_key = tuple(sorted(()))
-        g0 = 0
-        f0 = g0 + alpha * h0
-        heapq.heappush(open_heap, (f0, g0, h0, next(tie), start_key, start_mat, start_probables))
-        visited_best_g[start_key] = g0
+        eval_cache, seen = {}, set()
 
-        while open_heap:
-            f, g, h, _, state_key, cur_mat, cur_probables = heapq.heappop(open_heap)
-            if g >= maximum_number_of_error:
-                continue
+        def evaluate(mat):
+            h = self._hash_matrix(mat)
+            if h not in eval_cache:
+                eval_cache[h] = self._violations_and_candidates(mat)
+            return eval_cache[h]
 
-            next_candidates = []
-            seen = set(state_key)
-            for p in cur_probables:
-                if p not in seen:
-                    next_candidates.append(p)
-                    if len(next_candidates) >= beam_width:
-                        break
+        best_global = (float("inf"), None, None)
 
-            for flip in next_candidates:
-                new_state = tuple(sorted(state_key + (flip,)))
-                new_g = g + 1
-                if new_state in visited_best_g and visited_best_g[new_state] <= new_g:
-                    continue
+        for _ in range(restarts + 1):
+            # population stores (v, matrix, flips)
+            v0, *_ = evaluate(matrix)
+            population = [(v0, matrix.copy(), tuple())]
+            stagnation, best_run = 0, float("inf")
 
-                test_mat, new_h, new_probables = self._get_matrix_weight(
-                    matrix, list(new_state), threshold_parity, threshold_data, false_positive
-                )
+            for _ in range(max_flips):
+                scored = []
+                for v, mat, flips in population:
+                    v, p_bad, c_bad, ranked, scores = evaluate(mat)
+                    if v == 0:
+                        rec = self.return_matrix(mat, list(flips))
+                        if rec["is_recovered"]:
+                            return rec
+                    scored.append((v, mat, flips, ranked))
 
-                if new_h == 0:
-                    recovered = self.return_matrix(test_mat, list(new_state))
-                    if recovered != -1:
-                        return recovered
+                scored.sort(key=lambda x: x[0])
+                if scored[0][0] < best_run:
+                    best_run = scored[0][0]
+                    stagnation = 0
+                    if best_run < best_global[0]:
+                        best_global = (best_run, scored[0][1].copy(), scored[0][2])
+                else:
+                    stagnation += 1
 
-                new_f = new_g + alpha * new_h
-                heapq.heappush(open_heap, (new_f, new_g, new_h, next(tie), new_state, test_mat, new_probables))
-                visited_best_g[new_state] = new_g
+                children = []
+                for v, mat, flips, ranked in scored[:beam_width]:
+                    if not ranked:
+                        continue
+                    k = min(per_parent_expansions, len(ranked))
+                    picks = ranked[:k]
+                    if stagnation >= stagnation_patience and len(ranked) > k:
+                        picks[-1] = ranked[np.random.randint(k, len(ranked))]
 
-        return -1
+                    for bit in picks:
+                        new_mat = mat.copy()
+                        self._flip_in_place(new_mat, bit)
+                        new_flips = tuple(sorted(flips + (bit,)))
+                        h = self._hash_matrix(new_mat)
+                        if h in seen:
+                            continue
+                        seen.add(h)
+                        v2, *_ = evaluate(new_mat)
+                        children.append((v2, new_mat, new_flips))
 
-    def decode_a_star(self, data_stream, threshold_data, threshold_parity,
-                      maximum_number_of_error, false_positive,
-                      *, alpha: float = 1.0, beam_width: int = 16):
-        if len(data_stream) != self.row * self.column:
-            raise ValueError("The data stream length should be", self.row * self.column)
-        matrix = self.data_stream_to_matrix(data_stream)
-        return self._decode_a_star(
-            matrix,
-            threshold_parity,
-            threshold_data,
-            maximum_number_of_error,
-            false_positive,
-            alpha=alpha,
-            beam_width=beam_width
-        )
+                if not children:
+                    break
 
-    # If you want to override decode to use A*
+                # Keep best children
+                children.sort(key=lambda x: x[0])
+                population = children[:beam_width]
+
+                # Early success check
+                if population and population[0][0] == 0:
+                    rec = self.return_matrix(population[0][1], list(population[0][2]))
+                    if rec["is_recovered"]:
+                        return rec
+
+        # No exact recovery; return best found
+        if best_global[1] is not None:
+            fallback = self.return_matrix(best_global[1], list(best_global[2] or ()))
+            if fallback["is_recovered"]:
+                return fallback
+        return {"is_recovered": False, "binary_data": "", "index": -1}
+
+    # --------------------------- Public Decode Interface -----------------------------
+
     def decode(self, data_stream, threshold_data, threshold_parity,
                maximum_number_of_error, false_positive):
-        return self.decode_a_star(data_stream, threshold_data, threshold_parity,
-                                  maximum_number_of_error, false_positive)
+        """
+        Uses stochastic beam search for decoding (replaces A*).
+        """
+        if len(data_stream) != self.row * self.column:
+            raise ValueError("Invalid data stream length.")
+
+        if not hasattr(self, "matrix_details"):
+            self.matrix_details, self.parity_bit_relation, self.checksum_bit_relation = \
+                self._matrix_details(getattr(self, "number_of_bit_per_origami", 29), 40)
+            self.data_bit_to_parity_bit = self.get_data_bit_to_parity_bit(self.parity_bit_relation)
+
+        mat = self.data_stream_to_matrix(data_stream)
+        return self._decode_beam(
+            mat,
+            beam_width=12,
+            max_flips=maximum_number_of_error or 6,
+            restarts=2,
+            per_parent_expansions=4,
+            stagnation_patience=2,
+            rng_seed=0
+        )
 
 
 # --------------------------- Debug Run -----------------------------
@@ -408,20 +407,15 @@ if __name__ == "__main__":
     encoded_matrix = origami_object.data_stream_to_matrix(
         origami_object.encode(bin_stream, 0, 29)
     )
-    # Example error injection
-    # encoded_matrix[1][0] = 0
-    # encoded_matrix[2][2] = 0
-
     decoded_file = origami_object.decode(
         origami_object.matrix_to_data_stream(encoded_matrix),
         threshold_data=2,
         threshold_parity=3,
-        maximum_number_of_error=5,
+        maximum_number_of_error=6,
         false_positive=0
     )
-
     print(decoded_file)
-    if decoded_file != -1 and decoded_file['binary_data'] == bin_stream:
+    if decoded_file['is_recovered'] and decoded_file['binary_data'] == bin_stream:
         print("Decoded successfully")
     else:
         print("Decoding failed")

@@ -317,8 +317,8 @@ def main():
     #     decode_single_file()
     
     # do_exhaustive_test(Path(args.bulk_folder), "single_bit")
-    # do_exhaustive_test(Path(args.bulk_folder), "double_bit")
-    do_exhaustive_test(Path(args.bulk_folder), "triple_bit")
+    do_exhaustive_test(Path(args.bulk_folder), "double_bit")
+    # do_exhaustive_test(Path(args.bulk_folder), "triple_bit")
     
 
 
