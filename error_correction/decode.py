@@ -45,12 +45,26 @@ def read_args():
     args = parser.parse_args()
     return args
 
+def create_file_name(args):
+     ior_file_name = f"{args.file_out}_ior.csv" if args.individual_origami_info else None
+     
+     if ior_file_name:
+            try:
+                with open(ior_file_name, "a") as ior_file:
+                    ior_file.write(
+                        "node, origami data, Error positions, decoded stream, success, decoding time\n")
+            except Exception as e:
+                self.logger.error("IOR file creation failed: %s", e)
+                return
+
 
 def main():
     args = read_args()
     dnam_decode = ProcessFile(verbose=args.verbose)
     
     encoded_origamis_path = Path(args.bulk_folder)
+    
+    create_file_name(args)
 
     def flip_n_bits(binary_str, error_pos):
         """
