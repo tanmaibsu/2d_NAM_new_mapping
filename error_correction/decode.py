@@ -211,7 +211,6 @@ def main():
                         # Convert back to string
                         origami = ''.join(origami_list)
                         idx = [i, j]
-                        print("errors-->", idx)
                         dnam_decode.decode([origami], origami_data[0], orig_idx, idx, [idx], args.file_out, args.file_size, int(args.parity_number),
                                         threshold_data=args.threshold_data,
                                         threshold_parity=args.threshold_parity,
@@ -310,14 +309,14 @@ def main():
                                 individual_origami_info=args.individual_origami_info,
                                 correct_file=args.correct_file)
 
-    # if args.bulk_folder != "":
-    #     encoded_origamis_path = Path(args.bulk_folder)
-    #     decode_in_bulk(encoded_origamis_path)
-    # else:
-    #     decode_single_file()
+    if args.bulk_folder != "":
+        encoded_origamis_path = Path(args.bulk_folder)
+        decode_in_bulk(encoded_origamis_path)
+    else:
+        decode_single_file()
     
     # do_exhaustive_test(Path(args.bulk_folder), "single_bit")
-    do_exhaustive_test(Path(args.bulk_folder), "double_bit")
+    # do_exhaustive_test(Path(args.bulk_folder), "double_bit")
     # do_exhaustive_test(Path(args.bulk_folder), "triple_bit")
     
 
@@ -329,5 +328,3 @@ if __name__ == '__main__':
     results = pstats.Stats(profile)
     results.sort_stats(pstats.SortKey.TIME)
     results.print_stats()
-
-
