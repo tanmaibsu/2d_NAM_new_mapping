@@ -270,6 +270,16 @@ def main():
             "00000100101000010101000010000010010100000100100000000000000010000111100000000011"
         ]
     
+    def import_original_origami_list_6_nodes():
+        return [
+            "01000100011010110111101010111001101001010101011011011010010110110101100001100000",
+            "00100100001110110111000101110010110101110000111110111110111110011001101001100001",
+            "10000001101001011001100011010000110000111110011001101010110011011101100010000010",
+            "00110111101100111101110000000111101110001000011011110101101010011011000100010011",
+            "00000100011111011101010100010001010101101011101100011010101110010110000000010100",
+            "01000010001110110011000000010101111100100110100100000011001011110011000000000101",
+        ]
+    
     # def decode_encoded_wetlab_data(args):
     #     # === Load the CSV ===
     #     file_path = "../encoded_data_wetlab.csv"   # adjust path if needed
@@ -316,19 +326,20 @@ def main():
 
     def decode_encoded_wetlab_data(args):
         # === Load the CSV with Python stock csv.reader ===
-        file_path = "encoded_data_wetlab.csv"   # adjust path if needed
+        file_path = "encoded_6_nodes_wetlab/2025-11-26_mixed_6_nodes_rep_3.csv"   # adjust path if needed
         
         # Import your original origami reference
-        original_origami_list = import_original_origami_list()
+        # original_origami_list = import_original_origami_list()
+        original_origami_list = import_original_origami_list_6_nodes()
 
         with open(file_path, "r", newline="", encoding="utf-8") as f:
             reader = csv.DictReader(f)  # reads rows into dicts keyed by column names
             rows = list(reader)
 
         # === Iterate over nodes (ID 0–3) ===
-        for node_id in range(4):  # only 0,1,2,3
-            if node_id in [0, 1]:  # preserve your skip condition
-                continue
+        for node_id in range(6):  # only 0,1,2,3
+            # if node_id in [0, 1]:  # preserve your skip condition
+            #     continue
 
             print(f"\n--- Processing Node {node_id} ---")
 
@@ -342,6 +353,12 @@ def main():
                     origami_data = binary_string[1:]
                 else:
                     origami_data = binary_string
+                
+                false_negatives = row["False Negatives"]
+                false_positives=row["False Positives"]
+                
+                if int(false_negatives) + int(false_positives) > 9:
+                    continue 
 
                 # === Call your decoder ===
                 dnam_decode.decode(
@@ -358,7 +375,9 @@ def main():
                     maximum_number_of_error=args.error,
                     false_positive=args.false_positive,
                     individual_origami_info=args.individual_origami_info,
-                    correct_file=args.correct_file
+                    correct_file=args.correct_file,
+                    false_negatives=row["False Negatives"],
+                    false_positives=row["False Positives"]
                 )
 
 

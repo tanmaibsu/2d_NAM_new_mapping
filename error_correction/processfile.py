@@ -23,9 +23,11 @@ class ProcessFile(Origami):
         self.node = []
         self.origami_data = []
         self.decoded_stream = []
-        self.errors_positions = []
+        self.false_negatives = []
+        self.false_positives = []
         self.success = []
         self.decoded_time = []
+        self.error_positions = []
 
         # Default (can be overridden by your layout)
         self.number_of_bit_per_origami = 29
@@ -36,27 +38,29 @@ class ProcessFile(Origami):
         self.node.clear()
         self.origami_data.clear()
         self.decoded_stream.clear()
-        self.errors_positions.clear()
+        self.false_negatives.clear()
+        self.false_positives.clear()
         self.success.clear()
         self.decoded_time.clear()
 
     def write_ior_csv(self, csv_path):
         """Flush current buffers to a CSV file."""
         header = ["node", "origami_data", "decoded_stream",
-                  "errors_positions", "success", "decoding_time"]
+                  "false_negatives", "false_positives", "success", "decoding_time"]
         try:
             with open(csv_path, "w", newline="") as f:
                 writer = csv.writer(f)
                 writer.writerow(header)
                 for i in range(len(self.node)):
-                    err_pos = self.errors_positions[i]
-                    if not isinstance(err_pos, str):
-                        err_pos = json.dumps(err_pos)
+                    # err_pos = self.errors_positions[i]
+                    # if not isinstance(err_pos, str):
+                    #     err_pos = json.dumps(err_pos)
                     writer.writerow([
                         self.node[i],
                         self.origami_data[i],
                         self.decoded_stream[i],
-                        err_pos,
+                        self.false_negatives[i],
+                        self.false_positives[i],
                         int(bool(self.success[i])),
                         self.decoded_time[i],
                     ])
@@ -65,12 +69,13 @@ class ProcessFile(Origami):
             self.logger.exception("Failed writing CSV %s: %s", csv_path, e)
 
     def _append_data_4_io(self, orig_idx, origami_data, decoded_stream,
-                          errors_positions, success, decoding_time):
+                          false_negatives, false_positives, success, decoding_time):
         # Appends are atomic in CPython; safe enough with threads for this use.
         self.node.append(orig_idx)
         self.origami_data.append(origami_data)
         self.decoded_stream.append(decoded_stream)
-        self.errors_positions.append(errors_positions)
+        self.false_negatives.append(false_negatives),
+        self.false_positives.append(false_positives),
         self.success.append(bool(success))
         self.decoded_time.append(decoding_time)
 
@@ -130,7 +135,7 @@ class ProcessFile(Origami):
     def single_origami_decode(self, single_origami, ior_file_name, correct_dictionary,
                               common_parity_index, minimum_temporary_weight,
                               maximum_number_of_error, false_positive, induced_errors,
-                              errors_positions, original_origami, orig_idx):
+                              errors_positions, original_origami, orig_idx, false_negatives, false_positives):
         start_time = time.time()
         index, origami_str = single_origami
 
@@ -143,7 +148,7 @@ class ProcessFile(Origami):
             return {
                 "io_row": dict(
                     orig_idx=orig_idx, origami_data=origami_str, decoded_stream="",
-                    errors_positions=errors_positions, success=False,
+                    false_negatives=false_negatives, false_positives=false_positives, success=False,
                     decoding_time=round(time.time() - start_time, 3),
                 ),
                 "summary": None
@@ -162,7 +167,7 @@ class ProcessFile(Origami):
             return {
                 "io_row": dict(
                     orig_idx=orig_idx, origami_data=origami_str, decoded_stream="",
-                    errors_positions=errors_positions, success=False,
+                    false_negatives=false_negatives, false_positives=false_positives, success=False,
                     decoding_time=round(time.time() - start_time, 3),
                 ),
                 "summary": None
@@ -173,7 +178,7 @@ class ProcessFile(Origami):
             return {
                 "io_row": dict(
                     orig_idx=orig_idx, origami_data=origami_str, decoded_stream="",
-                    errors_positions=errors_positions, success=False,
+                    false_negatives=false_negatives, false_positives=false_positives, success=False,
                     decoding_time=round(time.time() - start_time, 3),
                 ),
                 "summary": None
@@ -197,7 +202,8 @@ class ProcessFile(Origami):
             orig_idx=orig_idx,
             origami_data=origami_str,
             decoded_stream=decoded_stream,
-            errors_positions=errors_positions,
+            false_negatives=false_negatives, 
+            false_positives=false_positives,
             success=(original_origami == decoded_stream),
             decoding_time=round(time.time() - start_time, 3),
         )
@@ -212,8 +218,8 @@ class ProcessFile(Origami):
     # ---------- Decode (accumulate + optional flush) ----------
     def decode(self, data, original_origami, orig_idx, induced_errors, errors_positions,
                file_out, file_size, parity_number, threshold_data, threshold_parity,
-               maximum_number_of_error, individual_origami_info, false_positive,
-               correct_file=False, *, accumulate=True, write_csv=False, csv_path=None):
+               maximum_number_of_error, individual_origami_info, false_positive, false_negatives, 
+               false_positives, correct_file=False, *, accumulate=True, write_csv=False, csv_path=None):
         """
         Decodes a batch of origami strings.
         - If accumulate=True (default), buffers are NOT cleared; results append.
@@ -270,6 +276,8 @@ class ProcessFile(Origami):
                     errors_positions=errors_positions,
                     original_origami=original_origami,
                     orig_idx=orig_idx,
+                    false_negatives=false_negatives, 
+                    false_positives=false_positives
                 )
                 for pair in origami_data_list
             ]
@@ -284,7 +292,8 @@ class ProcessFile(Origami):
                     io_row["orig_idx"],
                     io_row["origami_data"],
                     io_row["decoded_stream"],
-                    io_row["errors_positions"],
+                    io_row["false_negatives"],
+                    io_row["false_positives"],
                     io_row["success"],
                     io_row["decoding_time"],
                 )
