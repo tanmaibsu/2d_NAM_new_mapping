@@ -8,6 +8,7 @@ import cProfile
 import pstats
 import math
 import csv
+import itertools
 
 def read_args():
     """
@@ -38,6 +39,13 @@ def read_args():
     parser.add_argument("-fp", "--false_positive", help="0 can also be 1.", type=int, default=1)
 
     parser.add_argument("-d", "--degree", help="Degree old/new", default="new", type=str)
+    parser.add_argument("--exhaustive", choices=["none","1","2","3","12","13","23","123"], default="none",
+                        help="Run exhaustive n-choose-k tests (flip 1->0 only). Produces CSVs of failing combos and per-bit votes.")
+    parser.add_argument("--exhaustive_report_prefix", default="exhaustive_report",
+                        help="Prefix for exhaustive CSV outputs (creates <prefix>_failures.csv and <prefix>_votes.csv).")
+    parser.add_argument("--exhaustive_max_origami", type=int, default=None,
+                        help="Optional limit on how many origami files to test (debugging).")
+
 
     parser.add_argument("-cf", "--correct_file", help="Original encoded file. Helps to check the status automatically."
                         , type=str, default=False)
@@ -162,106 +170,135 @@ def main():
 
         return [single_data]
     
-    def do_exhaustive_test(folder, type):
-        orig_idx = 0
-        for origami in sorted(folder.iterdir()):
-            data_file = open(origami, "r")
-            data = data_file.readlines()
-            origami_data = convert_to_single_arr(data)
-            data_file.close()
-            if type == "single_bit":
-                n = 1
-                # print(os.path.relpath(origami, start=os.getcwd()))
-                idx = 0
-                origami = origami_data[0]
-                for i in range(len(origami)):
-                    if origami[i] == "0":
+    def do_exhaustive_choose_tests(folder: Path, choose_spec: str = "123", max_origami: int = None,
+                                   report_prefix: str = "exhaustive_report"):
+        """
+        Exhaustively test n-choose-k bit flips (1->0 only) for k in choose_spec (e.g., "1", "23", "123").
+
+        Tracks:
+          1) All single/pair/triplet flip combinations that FAIL to decode correctly.
+          2) "Votes" per bit index for failing pairs/triplets (how often each bit participates in an uncorrectable pair/triplet).
+
+        Outputs:
+          - <report_prefix>_failures.csv
+          - <report_prefix>_votes.csv
+        """
+        ks = sorted({int(ch) for ch in choose_spec if ch in {"1", "2", "3"}})
+        if not ks:
+            print("[exhaustive] No valid k in choose_spec; nothing to do.")
+            return
+
+        failures_path = f"{report_prefix}_failures.csv"
+        votes_path = f"{report_prefix}_votes.csv"
+
+        # votes[bit] = {"pair": x, "triplet": y}
+        votes = {}
+        total_tests = {1: 0, 2: 0, 3: 0}
+        total_failures = {1: 0, 2: 0, 3: 0}
+
+        def bump_vote(bit_idx: int, kind: str):
+            if bit_idx not in votes:
+                votes[bit_idx] = {"pair": 0, "triplet": 0}
+            votes[bit_idx][kind] += 1
+
+        with open(failures_path, "w", newline="") as f_fail:
+            writer = csv.writer(f_fail)
+            writer.writerow(["orig_idx", "k", "flipped_indices", "status", "incorrect_count", "correct_count", "total_error_fixed"])
+
+            orig_idx = 0
+            for origami_file in sorted(folder.iterdir()):
+                if max_origami is not None and orig_idx >= max_origami:
+                    break
+                if origami_file.is_dir():
+                    continue
+
+                with open(origami_file, "r") as df:
+                    data = df.readlines()
+                origami_data = convert_to_single_arr(data)
+                if not origami_data:
+                    orig_idx += 1
+                    continue
+
+                original = origami_data[0]
+                one_positions = [i for i, b in enumerate(original) if b == "1"]
+
+                for k in ks:
+                    if len(one_positions) < k:
                         continue
-                    else:
-                        # Flip the bit
-                        origami_list = list(origami)
-                        origami_list[i] = "0"
-                        # Convert back to string
-                        origami = ''.join(origami_list)
-                        dnam_decode.decode([origami], origami_data[0], orig_idx,i, [i], args.file_out, args.file_size, int(args.parity_number),
-                                        threshold_data=args.threshold_data,
-                                        threshold_parity=args.threshold_parity,
-                                        maximum_number_of_error=args.error,
-                                        false_positive=args.false_positive,
-                                        individual_origami_info=args.individual_origami_info,
-                                        correct_file=args.correct_file)
-                        # Unflip the bit
-                        origami_list[i] = "1"
-                        # Convert back to string
-                        origami = ''.join(origami_list)
-            elif type == "double_bit":
-                origami = origami_data[0]
-                for i in range(len(origami)):
-                    if origami[i] == "0":
-                        continue
-                    for j in range(i + 1, len(origami)):
-                        if origami[j] == "0":
-                            continue
-                        
-                        origami_list = list(origami)
-                        # flip the dual bits
-                        origami_list[i] = "0"
-                        origami_list[j] = "0"
 
-                        # Convert back to string
-                        origami = ''.join(origami_list)
-                        idx = [i, j]
-                        dnam_decode.decode([origami], origami_data[0], orig_idx, idx, [idx], args.file_out, args.file_size, int(args.parity_number),
-                                        threshold_data=args.threshold_data,
-                                        threshold_parity=args.threshold_parity,
-                                        maximum_number_of_error=args.error,
-                                        false_positive=args.false_positive,
-                                        individual_origami_info=args.individual_origami_info,
-                                        correct_file=args.correct_file)
-                        # unflip the bits
-                        origami_list[i] = "1"
-                        origami_list[j] = "1"
-                        # Convert back to string
-                        origami = ''.join(origami_list)
-            elif type == "triple_bit":
-                origami = origami_data[0]
-                for i in range(len(origami)):
-                    if origami[i] == "0":
-                        continue
-                    for j in range(i + 1, len(origami)):
-                        if origami[j] == "0":
-                            continue
-                        for k in range(j + 1, len(origami)):
-                            if origami[k] == "0":
-                                continue
+                    for combo in itertools.combinations(one_positions, k):
+                        total_tests[k] += 1
 
-                            origami_list = list(origami)
-                            # Flip three bits
-                            origami_list[i] = "0"
-                            origami_list[j] = "0"
-                            origami_list[k] = "0"
+                        # Flip k bits (1 -> 0)
+                        mut_list = list(original)
+                        for idx_bit in combo:
+                            mut_list[idx_bit] = "0"
+                        mutated = "".join(mut_list)
 
-                            # Convert back to string
-                            origami = ''.join(origami_list)
-                            idx = [i, j, k]
+                        status, incorrect_count, correct_count, total_error_fixed, _ = dnam_decode.decode(
+                            [mutated],
+                            original,
+                            orig_idx,
+                            induced_errors=list(combo),
+                            errors_positions=[list(combo)],
+                            file_out=os.devnull,
+                            file_size=args.file_size,
+                            parity_number=int(args.parity_number),
+                            threshold_data=args.threshold_data,
+                            threshold_parity=args.threshold_parity,
+                            maximum_number_of_error=args.error,
+                            individual_origami_info=False,
+                            false_positive=args.false_positive,
+                            false_negatives=k,
+                            false_positives=0,
+                            correct_file=args.correct_file,
+                            accumulate=True,
+                            write_csv=False
+                        )
 
-                            dnam_decode.decode([origami], origami_data[0], orig_idx, idx, [idx], args.file_out, args.file_size, int(args.parity_number),
-                                               threshold_data=args.threshold_data,
-                                               threshold_parity=args.threshold_parity,
-                                               maximum_number_of_error=args.error,
-                                               false_positive=args.false_positive,
-                                               individual_origami_info=args.individual_origami_info,
-                                               correct_file=args.correct_file)
+                        success = (status == 1 and incorrect_count == 0)
+                        if not success:
+                            total_failures[k] += 1
+                            writer.writerow([orig_idx, k, ";".join(map(str, combo)), status, incorrect_count, correct_count, total_error_fixed])
 
-                            # Unflip three bits
-                            origami_list[i] = "1"
-                            origami_list[j] = "1"
-                            origami_list[k] = "1"
+                            # Voting only for pairs + triplets, per requirement
+                            if k == 2:
+                                for idx_bit in combo:
+                                    bump_vote(idx_bit, "pair")
+                            elif k == 3:
+                                for idx_bit in combo:
+                                    bump_vote(idx_bit, "triplet")
 
-                            # Convert back to string
-                            origami = ''.join(origami_list)
-            orig_idx = orig_idx + 1
-        
+                orig_idx += 1
+
+        # Write votes (ordered by max vote desc, then total desc, then bit idx asc)
+        vote_rows = []
+        for bit_idx, d in votes.items():
+            pair_v = d["pair"]
+            trip_v = d["triplet"]
+            total_v = pair_v + trip_v
+            vote_rows.append((bit_idx, pair_v, trip_v, total_v, max(pair_v, trip_v)))
+
+        vote_rows.sort(key=lambda x: (-x[4], -x[3], x[0]))
+
+        with open(votes_path, "w", newline="") as f_votes:
+            writer = csv.writer(f_votes)
+            writer.writerow(["bit_index", "pair_votes", "triplet_votes", "total_votes", "max_votes"])
+            for bit_idx, pair_v, trip_v, total_v, max_v in vote_rows:
+                writer.writerow([bit_idx, pair_v, trip_v, total_v, max_v])
+
+        # Console summary
+        print(f"[exhaustive] Wrote failures to: {failures_path}")
+        print(f"[exhaustive] Wrote votes to:    {votes_path}")
+        print(f"[exhaustive] Total tests:    {total_tests}")
+        print(f"[exhaustive] Total failures: {total_failures}")
+        if vote_rows:
+            print("[exhaustive] Top 15 worst bits by vote (bit, pair, triplet, total):")
+            for r in vote_rows[:15]:
+                print("  ", (r[0], r[1], r[2], r[3]))
+        else:
+            print("[exhaustive] No failing pairs/triplets detected => no votes to report.")
+
     def import_original_origami_list():
         return [
             "01000100011100011101110000100111101010000111000010011001000011010000100001101000",
@@ -270,15 +307,15 @@ def main():
             "00000100101000010101000010000010010100000100100000000000000010000111100000000011"
         ]
     
-    # def import_original_origami_list_6_nodes():
-    #     return [
-    #         "01000100011010110111101010111001101001010101011011011010010110110101100001100000",
-    #         "00100100001110110111000101110010110101110000111110111110111110011001101001100001",
-    #         "10000001101001011001100011010000110000111110011001101010110011011101100010000010",
-    #         "00110111101100111101110000000111101110001000011011110101101010011011000100010011",
-    #         "00000100011111011101010100010001010101101011101100011010101110010110000000010100",
-    #         "01000010001110110011000000010101111100100110100100000011001011110011000000000101",
-    #     ]
+    def import_original_origami_list_6_nodes():
+        return [
+            "01000100011010110111101010111001101001010101011011011010010110110101100001100000",
+            "00100100001110110111000101110010110101110000111110111110111110011001101001100001",
+            "10000001101001011001100011010000110000111110011001101010110011011101100010000010",
+            "00110111101100111101110000000111101110001000011011110101101010011011000100010011",
+            "00000100011111011101010100010001010101101011101100011010101110010110000000010100",
+            "01000010001110110011000000010101111100100110100100000011001011110011000000000101",
+        ]
     
     # def decode_encoded_wetlab_data(args):
     #     # === Load the CSV ===
@@ -326,20 +363,20 @@ def main():
 
     def decode_encoded_wetlab_data(args):
         # === Load the CSV with Python stock csv.reader ===
-        file_path = f"{args.bulk_folder}.csv"   # adjust path if needed
+        file_path = "encoded_6_nodes_wetlab/2025-11-26_mixed_6_nodes_rep_3.csv"   # adjust path if needed
         
         # Import your original origami reference
         # original_origami_list = import_original_origami_list()
-        original_origami_list = import_original_origami_list()
+        original_origami_list = import_original_origami_list_6_nodes()
 
         with open(file_path, "r", newline="", encoding="utf-8") as f:
             reader = csv.DictReader(f)  # reads rows into dicts keyed by column names
             rows = list(reader)
 
         # === Iterate over nodes (ID 0–3) ===
-        for node_id in range(4):  # only 0,1,2,3
-            if node_id in [2, 3]:  # preserve your skip condition
-                continue
+        for node_id in range(6):  # only 0,1,2,3
+            # if node_id in [0, 1]:  # preserve your skip condition
+            #     continue
 
             print(f"\n--- Processing Node {node_id} ---")
 
@@ -435,7 +472,16 @@ def main():
     # do_exhaustive_test(Path(args.bulk_folder), "single_bit")
     # do_exhaustive_test(Path(args.bulk_folder), "double_bit")
     # do_exhaustive_test(Path(args.bulk_folder), "triple_bit")
+    # Exhaustive choose-k tests (1->0 flips)
+    if args.exhaustive != "none":
+        do_exhaustive_choose_tests(Path(args.bulk_folder),
+                                  choose_spec=args.exhaustive,
+                                  max_origami=args.exhaustive_max_origami,
+                                  report_prefix=args.exhaustive_report_prefix)
+        return
+
     decode_encoded_wetlab_data(args)
+
     
     
 
