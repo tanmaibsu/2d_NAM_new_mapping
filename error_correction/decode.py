@@ -222,11 +222,11 @@ def main():
     
     def decode_encoded_wetlab_data(args):
         # === Load the CSV with Python stock csv.reader ===
-        file_path = "encoded_6_nodes_wetlab/2025-11-26_mixed_6_nodes_rep_3.csv"   # adjust path if needed
+        file_path = Path(args.bulk_folder)  # adjust path if needed
         
         # Import your original origami reference
         # original_origami_list = import_original_origami_list()
-        original_origami_list = import_original_origami_list_6_nodes()
+        original_origami_list = import_original_origami_list()
 
         with open(file_path, "r", newline="", encoding="utf-8") as f:
             reader = csv.DictReader(f)  # reads rows into dicts keyed by column names
@@ -234,8 +234,8 @@ def main():
 
         # === Iterate over nodes (ID 0–3) ===
         for node_id in range(6):  # only 0,1,2,3
-            # if node_id in [0, 1]:  # preserve your skip condition
-            #     continue
+            if node_id in [2, 3]:  # preserve your skip condition
+                continue
 
             print(f"\n--- Processing Node {node_id} ---")
 
