@@ -211,18 +211,21 @@ def main():
                         # Convert back to string
                         origami = ''.join(origami_list)
                         idx = [i, j]
+                        print("<------error positions------>", idx)
                         dnam_decode.decode([origami], origami_data[0], orig_idx, idx, [idx], args.file_out, args.file_size, int(args.parity_number),
                                         threshold_data=args.threshold_data,
                                         threshold_parity=args.threshold_parity,
                                         maximum_number_of_error=args.error,
                                         false_positive=args.false_positive,
                                         individual_origami_info=args.individual_origami_info,
+                                        false_negatives=2,
+                                        false_positives=0,
                                         correct_file=args.correct_file)
                         # unflip the bits
-                        origami_list[i] = "1"
-                        origami_list[j] = "1"
+                        # origami_list[i] = "1"
+                        # origami_list[j] = "1"
                         # Convert back to string
-                        origami = ''.join(origami_list)
+                        origami = origami_data[0]
             elif type == "triple_bit":
                 origami = origami_data[0]
                 for i in range(len(origami)):
@@ -433,9 +436,9 @@ def main():
     #     decode_single_file()
     
     # do_exhaustive_test(Path(args.bulk_folder), "single_bit")
-    # do_exhaustive_test(Path(args.bulk_folder), "double_bit")
+    do_exhaustive_test(Path(args.bulk_folder), "double_bit")
     # do_exhaustive_test(Path(args.bulk_folder), "triple_bit")
-    decode_encoded_wetlab_data(args)
+    # decode_encoded_wetlab_data(args)
     
     
 

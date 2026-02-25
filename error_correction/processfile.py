@@ -1,17 +1,40 @@
 import time
-from collections import Counter
+from collections import Counter, defaultdict
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import math
 from log import get_logger
 from origami_greedy import Origami
 import csv
-import json
 import os
+
+
+def _parse_semicolon_indices(s: str):
+    """
+    induced_errors stored as: "i;j" or "i;j;k"
+    Returns: [i, j] / [i, j, k]
+    """
+    if s is None:
+        return []
+    s = str(s).strip()
+    if not s:
+        return []
+    return [int(x) for x in s.split(";") if x != ""]
+
 
 class ProcessFile(Origami):
     """
     Orchestrates encoding/decoding of origami segments, buffers per-origami
     results in memory, and can flush them to CSV on demand.
+
+    CSV columns written:
+      node, origami_data, decoded_stream, induced_errors,
+      related_parity_bits, related_checksum_bits,
+      success, decoding_time
+
+    NOTE:
+      - Your parity/checksum relations contain tuple positions (r, c).
+      - induced_errors are flat indices (0..row*col-1).
+      - We convert tuple positions to flat indices using r*column + c.
     """
 
     def __init__(self, verbose):
@@ -23,14 +46,42 @@ class ProcessFile(Origami):
         self.node = []
         self.origami_data = []
         self.decoded_stream = []
-        self.false_negatives = []
-        self.false_positives = []
+        self.induced_errors = []
+        self.related_parity_bits = []
+        self.related_checksum_bits = []
+        self.common_parity_bits = []
         self.success = []
         self.decoded_time = []
-        self.error_positions = []
 
         # Default (can be overridden by your layout)
         self.number_of_bit_per_origami = 29
+
+        # Inverse maps: flat_position -> list of parity/checksum bit indices that include it
+        self._pos_to_parity = defaultdict(list)
+        self._pos_to_checksum = defaultdict(list)
+
+    # ---------- Helpers ----------
+    def _to_flat_index(self, x):
+        """
+        Converts a matrix coordinate (r,c) or numeric-like value to a flat index.
+        Flat index convention: r*column + c
+        """
+        if isinstance(x, (tuple, list)) and len(x) == 2:
+            r, c = x
+            return int(r) * int(self.column) + int(c)
+
+        if isinstance(x, str):
+            s = x.strip()
+            if not s:
+                raise ValueError("Empty position string")
+            # supports "(r,c)" or "r,c"
+            if "," in s:
+                s = s.strip("()")
+                r, c = s.split(",")
+                return int(r) * int(self.column) + int(c)
+            return int(float(s))
+
+        return int(float(x))
 
     # ---------- Buffer helpers ----------
     def reset_ior_buffers(self):
@@ -38,29 +89,39 @@ class ProcessFile(Origami):
         self.node.clear()
         self.origami_data.clear()
         self.decoded_stream.clear()
-        self.false_negatives.clear()
-        self.false_positives.clear()
+        self.induced_errors.clear()
+        self.related_parity_bits.clear()
+        self.common_parity_bits.clear()
+        self.related_checksum_bits.clear()
         self.success.clear()
         self.decoded_time.clear()
 
     def write_ior_csv(self, csv_path):
         """Flush current buffers to a CSV file."""
-        header = ["node", "origami_data", "decoded_stream",
-                  "false_negatives", "false_positives", "success", "decoding_time"]
+        header = [
+            "node",
+            "origami_data",
+            "decoded_stream",
+            "induced_errors",
+            "related_parity_bits",
+            "common_parity_bits",
+            "related_checksum_bits",
+            "success",
+            "decoding_time",
+        ]
         try:
-            with open(csv_path, "w", newline="") as f:
+            with open(csv_path, "w", newline="", encoding="utf-8") as f:
                 writer = csv.writer(f)
                 writer.writerow(header)
                 for i in range(len(self.node)):
-                    # err_pos = self.errors_positions[i]
-                    # if not isinstance(err_pos, str):
-                    #     err_pos = json.dumps(err_pos)
                     writer.writerow([
                         self.node[i],
                         self.origami_data[i],
                         self.decoded_stream[i],
-                        self.false_negatives[i],
-                        self.false_positives[i],
+                        self.induced_errors[i],
+                        self.related_parity_bits[i],
+                        self.common_parity_bits[i],
+                        self.related_checksum_bits[i],
                         int(bool(self.success[i])),
                         self.decoded_time[i],
                     ])
@@ -68,14 +129,17 @@ class ProcessFile(Origami):
         except Exception as e:
             self.logger.exception("Failed writing CSV %s: %s", csv_path, e)
 
-    def _append_data_4_io(self, orig_idx, origami_data, decoded_stream,
-                          false_negatives, false_positives, success, decoding_time):
+    def _append_data_4_io(self, node, origami_data, decoded_stream,
+                          induced_errors, related_parity_bits, common_parity_bits, related_checksum_bits,
+                          success, decoding_time):
         # Appends are atomic in CPython; safe enough with threads for this use.
-        self.node.append(orig_idx)
+        self.node.append(int(node))
         self.origami_data.append(origami_data)
         self.decoded_stream.append(decoded_stream)
-        self.false_negatives.append(false_negatives),
-        self.false_positives.append(false_positives),
+        self.induced_errors.append(induced_errors)
+        self.related_parity_bits.append(related_parity_bits)
+        self.common_parity_bits.append(common_parity_bits)
+        self.related_checksum_bits.append(related_checksum_bits)
         self.success.append(bool(success))
         self.decoded_time.append(decoding_time)
 
@@ -135,11 +199,15 @@ class ProcessFile(Origami):
     def single_origami_decode(self, single_origami, ior_file_name, correct_dictionary,
                               common_parity_index, minimum_temporary_weight,
                               maximum_number_of_error, false_positive, induced_errors,
-                              errors_positions, original_origami, orig_idx, false_negatives, false_positives):
+                              errors_positions, original_origami, node_id):
+        """
+        node_id: real node number (0..N), e.g. parsed from filename origami0..origami3
+        """
         start_time = time.time()
         index, origami_str = single_origami
 
-        self.logger.info("Decoding origami (%d)", index)
+        self.logger.info("Decoding origami (%d) [node=%s]", index, node_id)
+
         if len(origami_str) != self.row * self.column:
             self.logger.warning(
                 "Origami (%d) is incomplete. Expected: %d, Found: %d",
@@ -147,8 +215,12 @@ class ProcessFile(Origami):
             )
             return {
                 "io_row": dict(
-                    orig_idx=orig_idx, origami_data=origami_str, decoded_stream="",
-                    false_negatives=false_negatives, false_positives=false_positives, success=False,
+                    node=node_id, origami_data=origami_str, decoded_stream="",
+                    induced_errors=induced_errors,
+                    related_parity_bits="",
+                    common_parity_bits="",
+                    related_checksum_bits="",
+                    success=False,
                     decoding_time=round(time.time() - start_time, 3),
                 ),
                 "summary": None
@@ -166,8 +238,12 @@ class ProcessFile(Origami):
             self.logger.exception("Decoding failed for origami (%d): %s", index, str(e))
             return {
                 "io_row": dict(
-                    orig_idx=orig_idx, origami_data=origami_str, decoded_stream="",
-                    false_negatives=false_negatives, false_positives=false_positives, success=False,
+                    node=node_id, origami_data=origami_str, decoded_stream="",
+                    induced_errors=induced_errors,
+                    related_parity_bits="",
+                    common_parity_bits="",
+                    related_checksum_bits="",
+                    success=False,
                     decoding_time=round(time.time() - start_time, 3),
                 ),
                 "summary": None
@@ -177,8 +253,12 @@ class ProcessFile(Origami):
             self.logger.warning("Decoding unsuccessful for origami (%d)", index)
             return {
                 "io_row": dict(
-                    orig_idx=orig_idx, origami_data=origami_str, decoded_stream="",
-                    false_negatives=false_negatives, false_positives=false_positives, success=False,
+                    node=node_id, origami_data=origami_str, decoded_stream="",
+                    induced_errors=induced_errors,
+                    related_parity_bits="",
+                    common_parity_bits="",
+                    related_checksum_bits="",
+                    success=False,
                     decoding_time=round(time.time() - start_time, 3),
                 ),
                 "summary": None
@@ -198,15 +278,44 @@ class ProcessFile(Origami):
                 status = -1
 
         decoded_stream = self.matrix_to_data_stream(decoded_matrix['matrix'])
+
+        # ===== compute which parity/checksum bits cover the induced error positions =====
+        induced_pos = _parse_semicolon_indices(induced_errors)
+
+        parity_hits = set()
+        checksum_hits = set()
+        for pos in induced_pos:
+            for p in self._pos_to_parity.get(pos, []):
+                parity_hits.add(int(p))
+            for c in self._pos_to_checksum.get(pos, []):
+                checksum_hits.add(int(c))
+
+        related_parity_bits = ";".join(map(str, sorted(parity_hits)))
+        related_checksum_bits = ";".join(map(str, sorted(checksum_hits)))
+        
+        # intersection across all induced positions
+        if not induced_pos:
+            common_set = set()
+        else:
+            common_set = set(map(int, self._pos_to_parity.get(induced_pos[0], [])))
+            for pos in induced_pos[1:]:
+                common_set &= set(map(int, self._pos_to_parity.get(pos, [])))
+
+        common_parity_bits = ";".join(map(str, sorted(common_set)))
+        # =============================================================================
+
         io_row = dict(
-            orig_idx=orig_idx,
+            node=node_id,
             origami_data=origami_str,
             decoded_stream=decoded_stream,
-            false_negatives=false_negatives, 
-            false_positives=false_positives,
+            induced_errors=induced_errors,
+            related_parity_bits=related_parity_bits,
+            common_parity_bits=common_parity_bits,
+            related_checksum_bits=related_checksum_bits,
             success=(original_origami == decoded_stream),
             decoding_time=round(time.time() - start_time, 3),
         )
+
         summary = {
             "index": decoded_index,
             "binary_data": decoded_data,
@@ -216,18 +325,15 @@ class ProcessFile(Origami):
         return {"io_row": io_row, "summary": summary}
 
     # ---------- Decode (accumulate + optional flush) ----------
-    def decode(self, data, original_origami, orig_idx, induced_errors, errors_positions,
+    def decode(self, data, original_origami, node_id, induced_errors, errors_positions,
                file_out, file_size, parity_number, threshold_data, threshold_parity,
-               maximum_number_of_error, individual_origami_info, false_positive, false_negatives, 
-               false_positives, correct_file=False, *, accumulate=True, write_csv=False, csv_path=None):
+               maximum_number_of_error, individual_origami_info, false_positive,
+               correct_file=False, *, accumulate=True, write_csv=False, csv_path=None):
         """
-        Decodes a batch of origami strings.
-        - If accumulate=True (default), buffers are NOT cleared; results append.
-          If accumulate=False, buffers are cleared before decoding.
-        - If write_csv=True, writes CSV at the end of this call (path controlled by csv_path).
-          Otherwise, call self.write_ior_csv(path) later to flush once for many calls.
+        node_id: real node number (0..N), e.g. parsed from filename origami0..origami3
 
-        Returns: (status, incorrect_count, correct_count, total_error_fixed, missing_list)
+        Adds two columns to the IOR CSV:
+          related_parity_bits, related_checksum_bits
         """
         self.logger.info("Errors Positions: %s", errors_positions)
 
@@ -240,8 +346,26 @@ class ProcessFile(Origami):
 
         # Layout details
         _, data_bit, segment_size = self._find_optimum_index_bits(file_size * 8, parity_number)
-        self.matrix_details, self.parity_bit_relation, self.checksum_bit_relation = self._matrix_details(data_bit, parity_number)
+        self.matrix_details, self.parity_bit_relation, self.checksum_bit_relation = self._matrix_details(
+            data_bit, parity_number
+        )
         self.data_bit_to_parity_bit = self.get_data_bit_to_parity_bit(self.parity_bit_relation)
+
+        # ===== build inverse maps: flat_position -> parity/checksum bits that include it =====
+        self._pos_to_parity = defaultdict(list)
+        for pbit, positions in self.parity_bit_relation.items():
+            pbit_flat = self._to_flat_index(pbit)  # pbit might be (r,c)
+            for pos in positions:
+                pos_flat = self._to_flat_index(pos)
+                self._pos_to_parity[pos_flat].append(pbit_flat)
+
+        self._pos_to_checksum = defaultdict(list)
+        for cbit, positions in self.checksum_bit_relation.items():
+            cbit_flat = self._to_flat_index(cbit)
+            for pos in positions:
+                pos_flat = self._to_flat_index(pos)
+                self._pos_to_checksum[pos_flat].append(cbit_flat)
+        # =============================================================================
 
         # Load correct file if provided
         correct_dictionary = {}
@@ -257,7 +381,7 @@ class ProcessFile(Origami):
         # Prepare input list
         origami_data_list = [(i, origami.strip()) for i, origami in enumerate(data)]
 
-        # Threaded decode to avoid multiprocessing pickling issues
+        # Threaded decode
         max_workers = min(32, (os.cpu_count() or 1))
         decoded_dictionary_wno = {}
 
@@ -275,9 +399,7 @@ class ProcessFile(Origami):
                     induced_errors=induced_errors,
                     errors_positions=errors_positions,
                     original_origami=original_origami,
-                    orig_idx=orig_idx,
-                    false_negatives=false_negatives, 
-                    false_positives=false_positives
+                    node_id=node_id,
                 )
                 for pair in origami_data_list
             ]
@@ -289,11 +411,13 @@ class ProcessFile(Origami):
 
                 # Buffer row in memory
                 self._append_data_4_io(
-                    io_row["orig_idx"],
+                    io_row["node"],
                     io_row["origami_data"],
                     io_row["decoded_stream"],
-                    io_row["false_negatives"],
-                    io_row["false_positives"],
+                    io_row["induced_errors"],
+                    io_row["related_parity_bits"],
+                    io_row["common_parity_bits"],
+                    io_row["related_checksum_bits"],
                     io_row["success"],
                     io_row["decoding_time"],
                 )
@@ -323,7 +447,6 @@ class ProcessFile(Origami):
 
         missing_origami = [i for i, val in enumerate(final_data) if val is None]
         if missing_origami:
-            # Optional per-call flush if asked
             if write_csv or individual_origami_info:
                 path = csv_path or f"{file_out}_ior.csv"
                 self.write_ior_csv(path)
@@ -349,7 +472,6 @@ class ProcessFile(Origami):
                 out_file.write(bytes(out_bytes))
         except Exception as e:
             self.logger.exception("Failed writing recovered file '%s': %s", file_out, e)
-            # Optional per-call flush if asked even on error
             if write_csv or individual_origami_info:
                 path = csv_path or f"{file_out}_ior.csv"
                 self.write_ior_csv(path)
