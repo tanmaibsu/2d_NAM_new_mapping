@@ -243,6 +243,12 @@ def main():
             node_rows = [row for row in rows if row.get("ID") and int(float(row["ID"])) == node_id]
 
             for row in node_rows:
+                false_negatives = row["False Negatives"]
+                false_positives=row["False Positives"]
+                
+                if int(false_negatives) + int(false_positives) > 9:
+                    continue 
+                
                 # Extract the binary string (strip leading 'b' if necessary)
                 binary_string = row["Binary String"]
                 if binary_string.startswith("b"):
@@ -250,12 +256,6 @@ def main():
                 else:
                     origami_data = binary_string
                 
-                false_negatives = row["False Negatives"]
-                false_positives=row["False Positives"]
-                
-                if int(false_negatives) + int(false_positives) > 9:
-                    continue 
-
                 # === Call your decoder ===
                 dnam_decode.decode(
                     [origami_data],
