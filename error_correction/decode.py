@@ -341,7 +341,7 @@ def main():
 
         # === Iterate over nodes (ID 0–3) ===
         for node_id in range(4):  # only 0,1,2,3
-            if node_id in [2, 3]:  # preserve your skip condition
+            if node_id in [0, 1]:  # preserve your skip condition
                 continue
 
             print(f"\n--- Processing Node {node_id} ---")
@@ -358,7 +358,7 @@ def main():
                     origami_data = binary_string
                 
                 false_negatives = row["False Negatives"]
-                false_positives=row["False Positives"]
+                false_positives = row["False Positives"]
                 
                 if int(false_negatives) + int(false_positives) > 9:
                     continue 
@@ -436,9 +436,9 @@ def main():
     #     decode_single_file()
     
     # do_exhaustive_test(Path(args.bulk_folder), "single_bit")
-    do_exhaustive_test(Path(args.bulk_folder), "double_bit")
+    # do_exhaustive_test(Path(args.bulk_folder), "double_bit")
     # do_exhaustive_test(Path(args.bulk_folder), "triple_bit")
-    # decode_encoded_wetlab_data(args)
+    decode_encoded_wetlab_data(args)
     
     
 
