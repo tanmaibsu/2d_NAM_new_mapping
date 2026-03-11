@@ -234,7 +234,7 @@ def main():
 
         # === Iterate over nodes (ID 0–3) ===
         for node_id in range(6):  # only 0,1,2,3
-            if node_id in [2, 3]:  # preserve your skip condition
+            if node_id in [0, 1]:  # preserve your skip condition
                 continue
 
             print(f"\n--- Processing Node {node_id} ---")
