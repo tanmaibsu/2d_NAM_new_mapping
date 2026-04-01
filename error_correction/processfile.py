@@ -198,13 +198,16 @@ class ProcessFile(Origami):
                 status = -1
 
         decoded_stream = self.matrix_to_data_stream(decoded_matrix['matrix'])
+        print("<--------original_origami-------->", len(original_origami))
+        print("<--------decoded_stream---------->", len(decoded_stream))
+        print("success", original_origami.strip() == decoded_stream)
         io_row = dict(
             orig_idx=orig_idx,
             origami_data=origami_str,
             decoded_stream=decoded_stream,
             false_negatives=false_negatives, 
             false_positives=false_positives,
-            success=(original_origami == decoded_stream),
+            success=(original_origami.strip() == decoded_stream),
             decoding_time=round(time.time() - start_time, 3),
         )
         summary = {
