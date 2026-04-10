@@ -427,18 +427,20 @@ def main():
                                 maximum_number_of_error=args.error,
                                 false_positive=args.false_positive,
                                 individual_origami_info=args.individual_origami_info,
-                                correct_file=args.correct_file)
+                                correct_file=args.correct_file,
+                                false_negatives=0,
+                                false_positives=0)
 
-    # if args.bulk_folder != "":
-    #     encoded_origamis_path = Path(args.bulk_folder)
-    #     decode_in_bulk(encoded_origamis_path)
-    # else:
-    #     decode_single_file()
+    if args.bulk_folder != "":
+        encoded_origamis_path = Path(args.bulk_folder)
+        decode_in_bulk(encoded_origamis_path)
+    else:
+        decode_single_file()
     
     # do_exhaustive_test(Path(args.bulk_folder), "single_bit")
     # do_exhaustive_test(Path(args.bulk_folder), "double_bit")
     # do_exhaustive_test(Path(args.bulk_folder), "triple_bit")
-    decode_encoded_wetlab_data(args)
+    # decode_encoded_wetlab_data(args)
     
     
 
