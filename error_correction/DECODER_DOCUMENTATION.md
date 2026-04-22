@@ -286,10 +286,6 @@ return failure
 | `max_iters` | 40 | Maximum search iterations |
 | `beam_width` | 6 | Number of candidate paths maintained |
 
-### Strengths and limitations
-
-- **Strengths**: Efficient for up to ~8 errors; considers both parity and checksum information; avoids local minima via beam search.
-- **Limitations**: Computational cost grows with beam width and iterations; may fail for dense error patterns where the syndrome is ambiguous.
 
 ---
 
