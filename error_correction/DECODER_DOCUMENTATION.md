@@ -54,12 +54,12 @@ Each origami is represented as an 8-row by 10-column matrix (80 cells total). Th
          Col 0   1   2   3   4   5   6   7   8   9
 Row 0   [ d   d   d   d   d   d   d   d   d   d  ]   ← data / checksum-covered
 Row 1   [ OR  p   p   p   p   p   p   p   p   OR ]   ← orientation corners + parity ring
-Row 2   [ ix  p   P   P   P   P   P   P   p   ix ]   ← index + parity (P = parity cell)
-Row 3   [ ix  p   P   P   CS  CS  P   P   p   ix ]   ← index + parity + checksum center
-Row 4   [ ix  p   P   P   CS  CS  P   P   p   ix ]   ← same
+Row 2   [ d  p   P   P   P   P   P   P   p   d ]   ← index + parity (P = parity cell)
+Row 3   [ d  p   P   P   CS  CS  P   P   p   d ]   ← index + parity + checksum center
+Row 4   [ d  p   P   P   CS  CS  P   P   p   d ]   ← same
 Row 5   [ d   p   P   P   P   P   P   P   p   d  ]   ← data + parity
 Row 6   [ OR  p   p   p   p   p   p   p   p   OR ]   ← orientation corners + parity ring
-Row 7   [ d   d   d   d   d   d   d   d   d   d  ]   ← data
+Row 7   [ d   d   d   d   d   d   d   d   idx   idx  ]   ← data
 ```
 
 *(Exact positions vary by parity configuration; diagram is illustrative for the 24-parity case.)*
