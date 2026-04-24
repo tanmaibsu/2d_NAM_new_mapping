@@ -218,7 +218,7 @@ class ProcessFile(Origami):
     # ---------- Decode (accumulate + optional flush) ----------
     def decode(self, data, original_origami, orig_idx, induced_errors, errors_positions,
                file_out, file_size, parity_number, threshold_data, threshold_parity,
-               maximum_number_of_error, individual_origami_info, false_positive, false_negatives, 
+               maximum_number_of_error, individual_origami_info, false_positive, false_negatives,
                false_positives, correct_file=False, *, accumulate=True, write_csv=False, csv_path=None):
         """
         Decodes a batch of origami strings.

@@ -355,7 +355,7 @@ class Origami:
             maximum_number_of_error, false_positive):
         """
         Attempts to decode a matrix by flipping bits to match parity and orientation rules.
-        
+
         :param matrix: Matrix to decode
         :param threshold_parity: Parity mismatch tolerance threshold
         :param threshold_data: Data mismatch tolerance threshold
@@ -369,7 +369,7 @@ class Origami:
         _, matrix_weight, probable_errors = self._get_matrix_weight(
             matrix, [], threshold_parity, threshold_data, false_positive
         )
-        
+
         print("<--------Initial matrix check without flipping any bit--------->")
         print("matrix_weight--->", matrix_weight)
         print("probable_errors--->", probable_errors)

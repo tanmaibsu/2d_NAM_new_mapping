@@ -102,105 +102,43 @@ def main():
 
         return [single_data]
     
-    def do_exhaustive_test(folder, type):
-        orig_idx = 0
-        for origami in sorted(folder.iterdir()):
-            data_file = open(origami, "r")
-            data = data_file.readlines()
+    def do_exhaustive_test(folder, n_bits):
+        """Test decoding by flipping all combinations of n_bits '1' bits to '0'.
+
+        Args:
+            folder: Path to directory containing origami files.
+            n_bits: Number of bits to flip (0, 1, 2, 3).
+        """
+        from itertools import combinations
+
+        for orig_idx, origami_file in enumerate(sorted(folder.iterdir())):
+            with open(origami_file, "r") as f:
+                data = f.readlines()
             origami_data = convert_to_single_arr(data)
-            data_file.close()
-            if type == "single_bit":
-                n = 1
-                # print(os.path.relpath(origami, start=os.getcwd()))
-                idx = 0
-                origami = origami_data[0]
-                for i in range(len(origami)):
-                    if origami[i] == "0":
-                        continue
-                    else:
-                        # Flip the bit
-                        origami_list = list(origami)
-                        origami_list[i] = "0"
-                        # Convert back to string
-                        origami = ''.join(origami_list)
-                        dnam_decode.decode([origami], origami_data[0], orig_idx,i, [i], args.file_out, args.file_size, int(args.parity_number),
-                                        threshold_data=args.threshold_data,
-                                        threshold_parity=args.threshold_parity,
-                                        maximum_number_of_error=args.error,
-                                        false_positive=args.false_positive,
-                                        individual_origami_info=args.individual_origami_info,
-                                        correct_file=args.correct_file)
-                        # Unflip the bit
-                        origami_list[i] = "1"
-                        # Convert back to string
-                        origami = ''.join(origami_list)
-            elif type == "double_bit":
-                origami = origami_data[0]
-                for i in range(len(origami)):
-                    if origami[i] == "0":
-                        continue
-                    for j in range(i + 1, len(origami)):
-                        if origami[j] == "0":
-                            continue
-                        
-                        origami_list = list(origami)
-                        # flip the dual bits
-                        origami_list[i] = "0"
-                        origami_list[j] = "0"
+            origami_str = origami_data[0]
 
-                        # Convert back to string
-                        origami = ''.join(origami_list)
-                        idx = [i, j]
-                        dnam_decode.decode([origami], origami_data[0], orig_idx, idx, [idx], args.file_out, args.file_size, int(args.parity_number),
-                                        threshold_data=args.threshold_data,
-                                        threshold_parity=args.threshold_parity,
-                                        maximum_number_of_error=args.error,
-                                        false_positive=args.false_positive,
-                                        individual_origami_info=args.individual_origami_info,
-                                        correct_file=args.correct_file)
-                        # unflip the bits
-                        origami_list[i] = "1"
-                        origami_list[j] = "1"
-                        # Convert back to string
-                        origami = ''.join(origami_list)
-            elif type == "triple_bit":
-                origami = origami_data[0]
-                for i in range(len(origami)):
-                    if origami[i] == "0":
-                        continue
-                    for j in range(i + 1, len(origami)):
-                        if origami[j] == "0":
-                            continue
-                        for k in range(j + 1, len(origami)):
-                            if origami[k] == "0":
-                                continue
+            one_positions = [i for i, bit in enumerate(origami_str) if bit == "1"]
 
-                            origami_list = list(origami)
-                            # Flip three bits
-                            origami_list[i] = "0"
-                            origami_list[j] = "0"
-                            origami_list[k] = "0"
+            for error_pos in combinations(one_positions, n_bits):
+                flipped = list(origami_str)
+                for idx in error_pos:
+                    flipped[idx] = "0"
+                flipped_str = ''.join(flipped)
 
-                            # Convert back to string
-                            origami = ''.join(origami_list)
-                            idx = [i, j, k]
-
-                            dnam_decode.decode([origami], origami_data[0], orig_idx, idx, [idx], args.file_out, args.file_size, int(args.parity_number),
-                                               threshold_data=args.threshold_data,
-                                               threshold_parity=args.threshold_parity,
-                                               maximum_number_of_error=args.error,
-                                               false_positive=args.false_positive,
-                                               individual_origami_info=args.individual_origami_info,
-                                               correct_file=args.correct_file)
-
-                            # Unflip three bits
-                            origami_list[i] = "1"
-                            origami_list[j] = "1"
-                            origami_list[k] = "1"
-
-                            # Convert back to string
-                            origami = ''.join(origami_list)
-            orig_idx = orig_idx + 1
+                error_pos_list = list(error_pos)
+                dnam_decode.decode(
+                    [flipped_str], origami_data[0], orig_idx,
+                    error_pos_list, [error_pos_list],
+                    args.file_out, args.file_size, int(args.parity_number),
+                    threshold_data=args.threshold_data,
+                    threshold_parity=args.threshold_parity,
+                    maximum_number_of_error=args.error,
+                    false_positive=args.false_positive,
+                    individual_origami_info=args.individual_origami_info,
+                    correct_file=args.correct_file,
+                    false_negatives=2,
+                    false_positives=0
+                )
         
     def import_original_origami_list():
         return [
@@ -233,8 +171,8 @@ def main():
             rows = list(reader)
 
         # === Iterate over nodes (ID 0–3) ===
-        for node_id in range(6):  # only 0,1,2,3
-            if node_id in [0, 1]:  # preserve your skip condition
+        for node_id in range(4):  # only 0,1,2,3
+            if node_id in [2, 3]:  # preserve your skip condition
                 continue
 
             print(f"\n--- Processing Node {node_id} ---")
@@ -247,8 +185,8 @@ def main():
                 false_positives=row["False Positives"]
                 
                 if int(false_negatives) + int(false_positives) > 9:
-                    continue 
-                
+                    continue
+
                 # Extract the binary string (strip leading 'b' if necessary)
                 binary_string = row["Binary String"]
                 if binary_string.startswith("b"):
@@ -329,9 +267,9 @@ def main():
     #     decode_single_file()
     
     # do_exhaustive_test(Path(args.bulk_folder), "single_bit")
-    # do_exhaustive_test(Path(args.bulk_folder), "double_bit")
+    do_exhaustive_test(Path(args.bulk_folder), 2)
     # do_exhaustive_test(Path(args.bulk_folder), "triple_bit")
-    decode_encoded_wetlab_data(args)
+    # decode_encoded_wetlab_data(args)
     
     
 
