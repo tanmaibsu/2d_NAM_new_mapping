@@ -480,7 +480,7 @@ def main():
                                   report_prefix=args.exhaustive_report_prefix)
         return
 
-    decode_encoded_wetlab_data(args)
+    # decode_encoded_wetlab_data(args)
 
     
     

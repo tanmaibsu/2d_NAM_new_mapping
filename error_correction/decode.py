@@ -402,7 +402,7 @@ def main():
             err_pos = []
             n = 1
             # print(os.path.relpath(origami, start=os.getcwd()))
-            for errors in error_poss[i]:
+            for errors in error_pos[i]:
                 origami_data, errors_index = flip_n_bits(data[0], n)
                 # err_pos = errors_index
                 dnam_decode.decode([origami_data], errors, [], args.file_out, args.file_size, int(args.parity_number),
@@ -431,14 +431,14 @@ def main():
                                 false_negatives=0,
                                 false_positives=0)
 
-    if args.bulk_folder != "":
-        encoded_origamis_path = Path(args.bulk_folder)
-        decode_in_bulk(encoded_origamis_path)
-    else:
-        decode_single_file()
+    # if args.bulk_folder != "":
+    #     encoded_origamis_path = Path(args.bulk_folder)
+    #     decode_in_bulk(encoded_origamis_path)
+    # else:
+    #     decode_single_file()
     
     # do_exhaustive_test(Path(args.bulk_folder), "single_bit")
-    # do_exhaustive_test(Path(args.bulk_folder), "double_bit")
+    do_exhaustive_test(Path(args.bulk_folder), "double_bit")
     # do_exhaustive_test(Path(args.bulk_folder), "triple_bit")
     # decode_encoded_wetlab_data(args)
     

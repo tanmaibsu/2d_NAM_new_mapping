@@ -605,10 +605,10 @@ class Origami:
 
         
         if not isinstance(fixed, int):
-            ok, i, ori = self._strict_matrix_ok(fixed)
+            ok, ori, oriented_fixed = self._strict_matrix_ok(fixed)
             if ok:
                 flips = self._mirror_locations(flips, ori)
-                return self.return_matrix(oriented, flips)
+                return self.return_matrix(oriented_fixed, flips)
 
         # 2) fallback
         return self._decode_legacy(
