@@ -171,9 +171,9 @@ def main():
             rows = list(reader)
 
         # === Iterate over nodes (ID 0–3) ===
-        for node_id in range(4):  # only 0,1,2,3
-            if node_id in [2, 3]:  # preserve your skip condition
-                continue
+        for node_id in range(6):  # only 0,1,2,3
+            # if node_id in [2, 3]:  # preserve your skip condition
+            #     continue
 
             print(f"\n--- Processing Node {node_id} ---")
 
@@ -267,9 +267,9 @@ def main():
     #     decode_single_file()
     
     # do_exhaustive_test(Path(args.bulk_folder), "single_bit")
-    do_exhaustive_test(Path(args.bulk_folder), 2)
+    # do_exhaustive_test(Path(args.bulk_folder), 2)
     # do_exhaustive_test(Path(args.bulk_folder), "triple_bit")
-    # decode_encoded_wetlab_data(args)
+    decode_encoded_wetlab_data(args)
     
     
 
