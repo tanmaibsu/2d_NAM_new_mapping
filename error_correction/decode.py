@@ -171,14 +171,18 @@ def main():
             rows = list(reader)
 
         # === Iterate over nodes (ID 0–3) ===
-        for node_id in range(6):  # only 0,1,2,3
-            # if node_id in [2, 3]:  # preserve your skip condition
+        for node_id in range(4):  # only 0,1,2,3
+            # if node_id in [2, 1]:  # preserve your skip condition
             #     continue
+            if node_id in [0, 1, 2]:
+                continue
 
             print(f"\n--- Processing Node {node_id} ---")
 
             # Subset rows for this node
-            node_rows = [row for row in rows if row.get("ID") and int(float(row["ID"])) == node_id]
+            node_rows = [row for row in rows if row.get("ID") and int(float(row["ID"])) == 0]
+            # print("<----------------------------->")
+            # print(node_rows)
 
             for row in node_rows:
                 false_negatives = row["False Negatives"]
