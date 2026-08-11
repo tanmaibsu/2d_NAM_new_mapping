@@ -77,24 +77,22 @@ class Origami:
         parity_bit_relation = self.get_parity_relation(parity_number)
         checksum_bit_relation = self.get_checksum_relation(parity_number)
 
-        data_index_orientation = set([i for v in checksum_bit_relation.values() for i in v])
-        orientation_bits = set([(1, 0), (1, 9), (6, 0), (6, 9)])
-        index_bits = set([(2, 0), (3, 0), (4, 0)])
-        data_index = data_index_orientation - orientation_bits
+        # The 4 former orientation cells (1,0),(1,9),(6,0),(6,9) are no longer
+        # reserved as markers -- they are ordinary data cells now. Orientation is
+        # recovered at decode time from parity consistency, which works because
+        # the parity mapping is asymmetric (no flip leaves it invariant).
+        data_index = set([i for v in checksum_bit_relation.values() for i in v])
         data_index = sorted(list(data_index))
         print("<----------data_bit_per_origami----------->")
         print(data_bit_per_origami)
         data_bits = data_index[:data_bit_per_origami]
         index_bits = data_index[data_bit_per_origami:]
-        # data_bits = data_index - index_bits
 
         matrix_details = dict(
             data_bits=list(data_bits),
-            orientation_bits=sorted(list(orientation_bits)),
             indexing_bits=list(index_bits),
             checksum_bits=list(checksum_bit_relation.keys()),
             parity_bits=list(parity_bit_relation.keys()),
-            orientation_data=[1, 1, 1, 0]
         )
         return matrix_details, parity_bit_relation, checksum_bit_relation
 
@@ -114,9 +112,7 @@ class Origami:
         for i, (row, col) in enumerate(self.matrix_details["data_bits"]):
             data_matrix[row][col] = binary_list[i]
 
-        # Insert orientation bits
-        for i, (row, col) in enumerate(self.matrix_details["orientation_bits"]):
-            data_matrix[row][col] = self.matrix_details['orientation_data'][i]
+        # No orientation bits to insert -- those cells now carry data.
 
         # Check if index is within supported range
         max_index = 2 ** len(self.matrix_details["indexing_bits"])
@@ -271,53 +267,49 @@ class Origami:
                 data_stream_index += 1
         return matrix
 
+    def _orientation_options(self, matrix):
+        """
+        The 4 orientations a captured origami may be in, keyed by the same
+        option convention used by orientation_details / _mirror_locations:
+            0 -> as-is, 1 -> flipud, 2 -> fliplr, 3 -> both.
+        The flips are involutions, so applying the option both detects and
+        undoes the imaging flip.
+        """
+        return {
+            0: matrix,
+            1: np.flipud(matrix),
+            2: np.fliplr(matrix),
+            3: np.flipud(np.fliplr(matrix)),
+        }
+
+    def _rank_orientations(self, matrix):
+        """
+        Replaces the old orientation-marker check. There are no reserved
+        orientation bits anymore; instead we lean on the asymmetric parity
+        mapping: the correct orientation is the one whose parity equations are
+        most consistent. Return the 4 orientations sorted by ascending parity
+        violations, so the most promising orientation is tried first.
+
+        :param matrix: decoded matrix in unknown orientation
+        :return: list of (option, oriented_matrix) sorted best-first
+        """
+        scored = []
+        for option, candidate in self._orientation_options(matrix).items():
+            _, incorrect = self._find_possible_error_location(candidate)
+            scored.append((len(incorrect), option, candidate))
+        scored.sort(key=lambda item: item[0])
+        self.logger.info("Orientation parity scores (option, violations): "
+                         + str([(o, w) for w, o, _ in scored]))
+        return [(option, candidate) for _, option, candidate in scored]
+
     def _fix_orientation(self, matrix, option=0):
         """
-        Fix the orientation of the decoded matrix. Option parameter will decide which way matrix will be tested now.
-        Initially we will check the default matrix(as it was passed). Later we will called this method recursively
-        and increase the option value. If option value is 3 and the orientation doesn't match then we will mark this
-        origami as not fixed.
-
-        First option is using current matrix
-        Second option is reversing the current matrix that will fix the vertically flipped issue
-        Third option is mirroring the current matrix that will fix the horizontally flipped issue
-        Fourth option is both reverse then mirror the current matrix that will fix
-        both vertically flipped and horizontally flipped issue
-
-        :param: matrix: Decoded matrix
-                option: On which direction the matrix will be flipped now
-
-        Returns:
-            matrix: Orientation fixed matrix.
+        Orientation is now resolved up front in decode() by ranking the 4
+        orientations on parity consistency, so by the time the matrix reaches
+        return_matrix it is already canonical. This is kept as a no-op for
+        return_matrix compatibility.
         """
-
-        if option == 0:
-            corrected_matrix = matrix
-        elif option == 1:
-            # We will just take the reverse/Flip in horizontal direction
-            corrected_matrix = np.flipud(matrix)
-        elif option == 2:
-            # We will take the mirror/flip in vertical direction
-            corrected_matrix = np.fliplr(matrix)
-        elif option == 3:
-            # Flip in both horizontal and vertical direction
-            corrected_matrix = np.flipud(np.fliplr(matrix))
-        else:
-            # The orientation couldn't be determined
-            # This is not correctly oriented. Will remove that after testing
-            self.logger.info("Couldn't orient the origami")
-            return -1, matrix
-        orientation_check = True
-        for i, bit_index in enumerate(self.matrix_details["orientation_bits"]):
-            if corrected_matrix[bit_index[0]][bit_index[1]] != self.matrix_details["orientation_data"][i]:
-                orientation_check = False
-        if orientation_check:
-            # returning option will tell us which way the origami was oriented.
-            self.logger.info("Origami was oriented successfully")
-            return option, corrected_matrix
-        else:
-            # Matrix isn't correctly oriented so we will try with other orientation
-            return self._fix_orientation(matrix, option + 1)
+        return 0, matrix
 
     def _find_possible_error_location(self, matrix):
         """
@@ -667,16 +659,22 @@ class Origami:
         # If length of decoded data is not 48 then show error
         if len(data_stream) != self.row * self.column:
             raise ValueError("The data stream length should be", self.row * self.column)
-        # Initial check which parity bit index gave error and which gave correct results
         # Converting the data stream to data array first
         data_matrix_for_decoding = self.data_stream_to_matrix(data_stream)
-        return self._decode(data_matrix_for_decoding, threshold_data,
-                            threshold_parity, maximum_number_of_error, false_positive)
 
-        #   After fixing orientation we need to check the checksum bit.
-        #   If we check before orientation fixed then it will not work
-
-        # sorting the matrix
+        # Orientation is no longer marked by reserved bits. Because the parity
+        # mapping is asymmetric, the correct orientation is the one with the
+        # fewest parity violations. Rank all 4 orientations and decode from the
+        # most promising one, falling back to the next if it fails to recover
+        # (guards against near-ties under heavy noise).
+        for option, oriented_matrix in self._rank_orientations(data_matrix_for_decoding):
+            result = self._decode(oriented_matrix, threshold_data, threshold_parity,
+                                  maximum_number_of_error, false_positive)
+            if result != -1:
+                result['orientation'] = option
+                result['orientation_details'] = self.orientation_details[str(option)]
+                return result
+        return -1
 
     def check_checksum(self, matrix):
         for check_sum_bit in self.checksum_bit_relation:
