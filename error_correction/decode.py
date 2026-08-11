@@ -42,6 +42,23 @@ def read_args():
     parser.add_argument("-cf", "--correct_file", help="Original encoded file. Helps to check the status automatically."
                         , type=str, default=False)
 
+    parser.add_argument("-s", "--scheme", help="Parity-24 scheme to use when decoding "
+                        "(only affects parity_number=24).", choices=["first_two", "last_two"],
+                        default="last_two")
+    parser.add_argument("-rf", "--reference_file", help="File with the reference (originally encoded) "
+                        "origami binary strings, one per line. Line i is the reference for node i. "
+                        "If omitted, the built-in 4-node reference list is used.", type=str, default=None)
+    parser.add_argument("-n", "--nodes", help="Comma-separated node ids to decode (e.g. '0,1'). "
+                        "If omitted, every node id present in the input file is decoded.",
+                        type=str, default=None)
+    parser.add_argument("-m", "--mode", help="Which decoding routine to run. "
+                        "'wetlab' decodes a wet-lab CSV (-bulk), 'single' decodes one file (-f), "
+                        "'exhaustive' flips every combination of --error_bits bits in each file "
+                        "of a folder (-bulk).", choices=["wetlab", "single", "exhaustive"],
+                        default="wetlab")
+    parser.add_argument("-eb", "--error_bits", help="Number of '1' bits to flip per combination "
+                        "in --mode exhaustive.", type=int, default=1)
+
     args = parser.parse_args()
     return args
 
@@ -148,41 +165,47 @@ def main():
             "00000100101000010101000010000010010100000100100000000000000010000111100000000011"
         ]
     
-    def import_original_origami_list_6_nodes():
-        return [
-            "01000100011010110111101010111001101001010101011011011010010110110101100001100000",
-            "00100100001110110111000101110010110101110000111110111110111110011001101001100001",
-            "10000001101001011001100011010000110000111110011001101010110011011101100010000010",
-            "00110111101100111101110000000111101110001000011011110101101010011011000100010011",
-            "00000100011111011101010100010001010101101011101100011010101110010110000000010100",
-            "01000010001110110011000000010101111100100110100100000011001011110011000000000101",
-        ]
-    
+    def load_reference_origami_list(reference_file):
+        """Return the list of reference origami strings.
+
+        If ``reference_file`` is given, read one binary string per line (line i is
+        the reference for node i) so any number of nodes is supported. Otherwise
+        fall back to the built-in 4-node reference list.
+        """
+        if reference_file:
+            with open(reference_file, "r", encoding="utf-8") as ref:
+                return [line.strip() for line in ref if line.strip()]
+        return import_original_origami_list()
+
     def decode_encoded_wetlab_data(args):
         # === Load the CSV with Python stock csv.reader ===
         file_path = Path(args.bulk_folder)  # adjust path if needed
-        
-        # Import your original origami reference
-        # original_origami_list = import_original_origami_list()
-        original_origami_list = import_original_origami_list()
+
+        # Reference origami sequences: from --reference_file (any N) or built-in 4-node list.
+        original_origami_list = load_reference_origami_list(args.reference_file)
 
         with open(file_path, "r", newline="", encoding="utf-8") as f:
             reader = csv.DictReader(f)  # reads rows into dicts keyed by column names
             rows = list(reader)
 
-        # === Iterate over nodes (ID 0–3) ===
-        for node_id in range(4):  # only 0,1,2,3
-            # if node_id in [2, 1]:  # preserve your skip condition
-            #     continue
-            if node_id in [0, 1, 2]:
+        # Node ids actually present in the file, unless the user restricted them with --nodes.
+        available_node_ids = sorted({int(float(row["ID"])) for row in rows if row.get("ID")})
+        if args.nodes:
+            requested = {int(n) for n in args.nodes.split(",") if n.strip() != ""}
+            node_ids = [n for n in available_node_ids if n in requested]
+        else:
+            node_ids = available_node_ids
+
+        # === Iterate over the selected nodes ===
+        for node_id in node_ids:
+            if node_id >= len(original_origami_list):
+                print(f"\n--- Skipping Node {node_id}: no reference origami available ---")
                 continue
 
-            print(f"\n--- Processing Node {node_id} ---")
+            print(f"\n--- Processing Node {node_id} (scheme={args.scheme}) ---")
 
             # Subset rows for this node
-            node_rows = [row for row in rows if row.get("ID") and int(float(row["ID"])) == 0]
-            # print("<----------------------------->")
-            # print(node_rows)
+            node_rows = [row for row in rows if row.get("ID") and int(float(row["ID"])) == node_id]
 
             for row in node_rows:
                 false_negatives = row["False Negatives"]
@@ -215,7 +238,8 @@ def main():
                     individual_origami_info=args.individual_origami_info,
                     correct_file=args.correct_file,
                     false_negatives=row["False Negatives"],
-                    false_positives=row["False Positives"]
+                    false_positives=row["False Positives"],
+                    scheme=args.scheme
                 )
 
 
@@ -264,16 +288,13 @@ def main():
                                 individual_origami_info=args.individual_origami_info,
                                 correct_file=args.correct_file)
 
-    # if args.bulk_folder != "":
-    #     encoded_origamis_path = Path(args.bulk_folder)
-    #     decode_in_bulk(encoded_origamis_path)
-    # else:
-    #     decode_single_file()
-    
-    # do_exhaustive_test(Path(args.bulk_folder), "single_bit")
-    # do_exhaustive_test(Path(args.bulk_folder), 2)
-    # do_exhaustive_test(Path(args.bulk_folder), "triple_bit")
-    decode_encoded_wetlab_data(args)
+    # Dispatch on --mode instead of editing this block by hand.
+    if args.mode == "single":
+        decode_single_file()
+    elif args.mode == "exhaustive":
+        do_exhaustive_test(Path(args.bulk_folder), args.error_bits)
+    else:  # "wetlab"
+        decode_encoded_wetlab_data(args)
     
     
 

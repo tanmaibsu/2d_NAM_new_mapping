@@ -219,7 +219,8 @@ class ProcessFile(Origami):
     def decode(self, data, original_origami, orig_idx, induced_errors, errors_positions,
                file_out, file_size, parity_number, threshold_data, threshold_parity,
                maximum_number_of_error, individual_origami_info, false_positive, false_negatives,
-               false_positives, correct_file=False, *, accumulate=True, write_csv=False, csv_path=None):
+               false_positives, correct_file=False, *, scheme="last_two",
+               accumulate=True, write_csv=False, csv_path=None):
         """
         Decodes a batch of origami strings.
         - If accumulate=True (default), buffers are NOT cleared; results append.
@@ -240,7 +241,7 @@ class ProcessFile(Origami):
 
         # Layout details
         _, data_bit, segment_size = self._find_optimum_index_bits(file_size * 8, parity_number)
-        self.matrix_details, self.parity_bit_relation, self.checksum_bit_relation = self._matrix_details(data_bit, parity_number)
+        self.matrix_details, self.parity_bit_relation, self.checksum_bit_relation = self._matrix_details(data_bit, parity_number, scheme)
         self.data_bit_to_parity_bit = self.get_data_bit_to_parity_bit(self.parity_bit_relation)
 
         # Load correct file if provided

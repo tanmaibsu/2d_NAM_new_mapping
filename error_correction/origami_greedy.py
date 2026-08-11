@@ -32,33 +32,28 @@ class Origami:
         }
         self.logger = get_logger(verbose, __name__)
     @staticmethod
-    def get_parity_relation(parity_number=40):
+    def get_parity_relation(parity_number=40, scheme="last_two"):
         parity_relation = {}
-        print(parity_number)
         if parity_number == 16:
-            print(" I am here parity 16")
-            parity_relation = pcm.parity_mapping_16() 
+            parity_relation = pcm.parity_mapping_16()
         elif parity_number == 24:
-            parity_relation = pcm.parity_mapping_24() 
+            parity_relation = pcm.parity_mapping_24(scheme)
         else:
-            print(" I am here parity 40")
-            parity_relation = pcm.parity_mapping_40() 
+            parity_relation = pcm.parity_mapping_40()
         return parity_relation
-            
+
     @staticmethod
     def get_checksum_relation(parity_number=40):
         checksum_relation = {}
         if parity_number == 16:
-            print(" I am here checksum 16")
             checksum_relation = pcm.checksum_mapping_16()
         elif parity_number == 24:
             checksum_relation = pcm.checksum_mapping_24()
         else:
-            print(" I am here checksum 40")
             checksum_relation = pcm.checksum_mapping_40()
         return checksum_relation
 
-    def _matrix_details(self, data_bit_per_origami: int, parity_number: int) -> object:
+    def _matrix_details(self, data_bit_per_origami: int, parity_number: int, scheme: str = "last_two") -> object:
         """
         Returns the relationship of the matrix. Currently all the the relationship is hardcoded.
         This method returns the following details:
@@ -74,7 +69,7 @@ class Origami:
                  checksum_bit_relation: Checksum bit mapping
 
         """
-        parity_bit_relation = self.get_parity_relation(parity_number)
+        parity_bit_relation = self.get_parity_relation(parity_number, scheme)
         checksum_bit_relation = self.get_checksum_relation(parity_number)
 
         data_index_orientation = set([i for v in checksum_bit_relation.values() for i in v])
@@ -82,8 +77,7 @@ class Origami:
         index_bits = set([(2, 0), (3, 0), (4, 0)])
         data_index = data_index_orientation - orientation_bits
         data_index = sorted(list(data_index))
-        print("<----------data_bit_per_origami----------->")
-        print(data_bit_per_origami)
+        self.logger.debug("data_bit_per_origami: %s", data_bit_per_origami)
         data_bits = data_index[:data_bit_per_origami]
         index_bits = data_index[data_bit_per_origami:]
         # data_bits = data_index - index_bits
